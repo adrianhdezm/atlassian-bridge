@@ -7,7 +7,7 @@ Thin client for Confluence Cloud REST API v2 page operations. Lives in `src/conf
 ```
 src/confluence/
 ├── confluence-models.ts    Zod schemas for API responses (deps: zod)
-└── confluence-client.ts   ConfluenceClient class — auth, pages, search (deps: confluence-models, shared/adf-schema, http-client)
+└── confluence-client.ts   ConfluenceClient class — auth, pages, search, space key resolution (deps: confluence-models, shared/adf-schema, shared/app-error, http-client)
 ```
 
 ## ConfluenceClient
@@ -22,6 +22,10 @@ interface ConfluenceClientConfig {
 export class ConfluenceClient {
   constructor(config: ConfluenceClientConfig);
 
+  // Spaces
+  getSpace(spaceIdOrKey: string): Promise<Space>;
+  getSpaceTree(spaceIdOrKey: string, options?: GetSpaceTreeOptions): Promise<DescendantPage[]>;
+
   // Pages
   getPage(pageId: string): Promise<Page>;
   getPages(options?: GetPagesOptions): Promise<PaginatedPages>;
@@ -31,7 +35,6 @@ export class ConfluenceClient {
 
   // Descendants
   getDescendants(pageId: string, options?: GetDescendantsOptions): Promise<DescendantPage[]>;
-  getSpaceTree(spaceId: string, options?: GetSpaceTreeOptions): Promise<DescendantPage[]>;
 
   // Search
   searchPages(options: SearchPagesOptions): Promise<SearchResult>;
@@ -80,8 +83,7 @@ type Page = z.infer<typeof PageSchema>;
 const PaginatedPagesSchema = z.object({
   results: z.array(PageSchema),
   _links: z.object({
-    next: z.string().optional(),
-    base: z.string()
+    next: z.string().optional()
   })
 });
 
@@ -103,8 +105,7 @@ const SearchResultItemSchema = z.object({
 const SearchResultSchema = z.object({
   results: z.array(SearchResultItemSchema),
   _links: z.object({
-    next: z.string().optional(),
-    base: z.string()
+    next: z.string().optional()
   })
 });
 
@@ -113,6 +114,20 @@ type SearchResult = z.infer<typeof SearchResultSchema>;
 ```
 
 The `searchPages` method maps the raw v1 response into this flat shape before returning — callers never see the nested `content` wrapper.
+
+### Space
+
+```ts
+const SpaceSchema = z.looseObject({
+  id: z.string(),
+  key: z.string(),
+  name: z.string(),
+  type: z.string(),
+  status: z.string()
+});
+
+type Space = z.infer<typeof SpaceSchema>;
+```
 
 ### Descendant Page
 
@@ -123,10 +138,10 @@ const DescendantPageSchema = z.looseObject({
   id: z.string(),
   status: z.string(),
   title: z.string(),
-  spaceId: z.string(),
-  parentId: z.string().nullable(),
+  type: z.string(),
+  parentId: z.string(),
   depth: z.number(),
-  _links: z.looseObject({ webui: z.string() })
+  childPosition: z.number()
 });
 
 type DescendantPage = z.infer<typeof DescendantPageSchema>;
@@ -140,8 +155,7 @@ Raw API response shape before flattening into `DescendantPage[]`.
 const PaginatedDescendantsSchema = z.object({
   results: z.array(DescendantPageSchema),
   _links: z.object({
-    next: z.string().optional(),
-    base: z.string()
+    next: z.string().optional()
   })
 });
 ```
@@ -151,9 +165,29 @@ const PaginatedDescendantsSchema = z.object({
 The constructor eagerly builds auth headers (see Basic Auth in `000-shared.spec.md`) and base URL prefixes:
 
 ```ts
-private readonly v2Url: string;  // `${baseUrl}/wiki/api/v2`
-private readonly v1Url: string;  // `${baseUrl}/wiki/rest/api`
+private readonly baseUrl: string;   // as-is from config, used to prefix `_links.next` during pagination
+private readonly v2Url: string;     // `${baseUrl}/wiki/api/v2`
+private readonly v1Url: string;     // `${baseUrl}/wiki/rest/api`
+private readonly spaceKeyCache = new Map<string, string>();
 ```
+
+## Space Key Resolution
+
+Methods that accept a space identifier (`getPages`, `createPage`, `getSpaceTree`) take `spaceIdOrKey: string`. The private `resolveSpaceId` method determines whether the value is a numeric ID or an alphabetic key and resolves accordingly:
+
+1. If `/^\d+$/` matches → return the value as-is (it's already an ID).
+2. Check `spaceKeyCache` → return cached ID if present.
+3. Fetch `GET /wiki/api/v2/spaces?keys=<key>` and parse with `SpaceLookupSchema`.
+4. If `results` is empty → throw `AppError("Space not found: <key>")`.
+5. Cache and return the first result's `id`.
+
+```ts
+const SpaceLookupSchema = z.object({
+  results: z.array(z.object({ id: z.string() }))
+});
+```
+
+The cache is per-client-instance — no global state. Each `new ConfluenceClient()` starts with an empty cache.
 
 ## ADF Validation
 
@@ -165,7 +199,7 @@ The client parses the `body` string as JSON, validates against `AdfSchema`, then
 
 ```ts
 interface GetPagesOptions {
-  spaceId?: string;
+  spaceIdOrKey?: string;
   title?: string;
   status?: string;
   limit?: number; // API default: 25, API max: 250 (not enforced client-side)
@@ -173,7 +207,7 @@ interface GetPagesOptions {
 }
 
 interface CreatePageAttrs {
-  spaceId: string;
+  spaceIdOrKey: string;
   title: string;
   parentId?: string;
   body: string; // ADF JSON string
@@ -196,13 +230,19 @@ interface GetDescendantsOptions {
 }
 
 interface GetSpaceTreeOptions {
-  depth?: number; // default: 3, API max: 10 (not enforced client-side)
+  depth?: number; // descendant depth below root pages, default: 2, API max: 10 (not enforced client-side)
 }
 ```
 
 ## Implementation Details
 
 All page methods use base path `${this.v2Url}/pages`. Body content uses `atlas_doc_format` representation exclusively.
+
+### getSpace
+
+`GET /wiki/api/v2/spaces/{id}`
+
+Resolves `spaceIdOrKey` via `resolveSpaceId` (numeric pass-through or key lookup), then fetches the full space object by numeric ID.
 
 ### getPage
 
@@ -212,11 +252,15 @@ All page methods use base path `${this.v2Url}/pages`. Body content uses `atlas_d
 
 `GET /wiki/api/v2/pages?body-format=atlas_doc_format&space-id=...&title=...`
 
-Cursor-based pagination — follow `_links.next` for subsequent pages.
+When `spaceIdOrKey` is provided, resolves it via `resolveSpaceId` before setting the `space-id` query param.
+
+Cursor-based pagination — follow `_links.next` prepended with `this.baseUrl` for subsequent pages.
 
 ### createPage
 
 `POST /wiki/api/v2/pages`
+
+Resolves `spaceIdOrKey` via `resolveSpaceId` before building the request body. The API body field is always `spaceId` (the resolved numeric ID).
 
 Request body sent to API:
 
@@ -257,16 +301,17 @@ The v2 API has no search endpoint — uses the **v1 CQL endpoint**. The method U
 
 `GET /wiki/api/v2/pages/{id}/descendants?depth=5&limit=250`
 
-Returns a flat `DescendantPage[]`. Auto-paginates by following `_links.next`. The `depth` param controls tree depth (default 5), `limit` controls per-request page size (default/max 250).
+Returns a flat `DescendantPage[]`. Auto-paginates by following `_links.next` prepended with `this.baseUrl`. The `depth` param controls tree depth (default 5), `limit` controls per-request page size (default/max 250).
 
 ### getSpaceTree
 
-Returns a flat `DescendantPage[]` for the full page tree of a space up to `depth` levels (default 3, max 10).
+Returns a flat `DescendantPage[]` for the full page tree of a space. Fetches root pages then descendants up to `depth` levels (default 2, max 10).
 
-1. Fetches root-level pages (`parentId: null`) by directly querying the pages endpoint (not via `getPages()`), auto-paginating.
-2. If `depth <= 1`, returns roots only — skips descendant fetching.
-3. Otherwise calls `getDescendants(rootId, { depth: depth - 1 })` for each root in parallel.
-4. Merges roots (as `DescendantPage` with `depth: 0`) and all descendants into a flat array.
+1. Resolves `spaceIdOrKey` via `resolveSpaceId` to a numeric ID.
+2. Fetches root-level pages via `GET /wiki/api/v2/spaces/{spaceId}/pages?depth=root&status=current`, auto-paginating via `_links.next` prepended with `this.baseUrl`.
+3. If `depth <= 0`, returns roots only — skips descendant fetching.
+4. Otherwise calls `getDescendants(rootId, { depth })` for each root in parallel.
+5. Merges roots (as `DescendantPage` with `depth: 0`) and all descendants into a flat array.
 
 ## Usage
 
@@ -281,7 +326,7 @@ const client = new ConfluenceClient({
 
 const page = await client.getPage('12345');
 const created = await client.createPage({
-  spaceId: '67890',
+  spaceIdOrKey: '67890',
   title: 'New Page',
   body: JSON.stringify({
     version: 1,
@@ -294,8 +339,8 @@ const results = await client.searchPages({ cql: 'type = page AND space = "DEV"' 
 
 ## Error Handling
 
-Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createPage` and `updatePage` throw `ZodError` if the ADF body is invalid — before any HTTP request. `deletePage` uses raw `fetch` and throws `Error` on non-ok (`response.ok === false`) responses.
+Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createPage` and `updatePage` throw `ZodError` if the ADF body is invalid — before any HTTP request. `deletePage` uses raw `fetch` and throws `Error` on non-ok (`response.ok === false`) responses. `resolveSpaceId` throws `AppError` when a space key returns no results.
 
 ## Testing
 
-Tests in `tests/confluence/confluence-client.test.ts`. Covers: constructor (auth headers, URL building), getPage, getPages, createPage (ADF validation, representation envelope), updatePage (version fetch, ADF validation), deletePage (204 assertion), searchPages (CQL encoding, v1 response flattening), getDescendants (auto-pagination, depth/limit params), getSpaceTree (root fetch + parallel descendants, depth merging).
+Tests in `tests/confluence/confluence-client.test.ts`. Covers: constructor (auth headers, URL building), getPage, getPages, createPage (ADF validation, representation envelope), updatePage (version fetch, ADF validation), deletePage (204 assertion), searchPages (CQL encoding, v1 response flattening), getDescendants (auto-pagination, depth/limit params), getSpaceTree (root fetch + parallel descendants, depth merging), resolveSpaceId (numeric pass-through, alpha key lookup, caching, not-found error).
