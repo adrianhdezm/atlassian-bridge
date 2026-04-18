@@ -152,12 +152,13 @@ type DescendantPage = z.infer<typeof DescendantPageSchema>;
 Raw API response shape before flattening into `DescendantPage[]`.
 
 ```ts
-const PaginatedDescendantsSchema = z.object({
+export const PaginatedDescendantsSchema = z.object({
   results: z.array(DescendantPageSchema),
   _links: z.object({
     next: z.string().optional()
   })
 });
+export type PaginatedDescendants = z.infer<typeof PaginatedDescendantsSchema>;
 ```
 
 ## Internal State
@@ -168,6 +169,7 @@ The constructor eagerly builds auth headers (see Basic Auth in `000-shared.spec.
 private readonly baseUrl: string;   // as-is from config, used to prefix `_links.next` during pagination
 private readonly v2Url: string;     // `${baseUrl}/wiki/api/v2`
 private readonly v1Url: string;     // `${baseUrl}/wiki/rest/api`
+private readonly headers: Record<string, string>;  // pre-built auth + content-type headers
 private readonly spaceKeyCache = new Map<string, string>();
 ```
 
@@ -182,7 +184,7 @@ Methods that accept a space identifier (`getPages`, `createPage`, `getSpaceTree`
 5. Cache and return the first result's `id`.
 
 ```ts
-const SpaceLookupSchema = z.object({
+export const SpaceLookupSchema = z.object({
   results: z.array(z.object({ id: z.string() }))
 });
 ```
@@ -254,7 +256,7 @@ Resolves `spaceIdOrKey` via `resolveSpaceId` (numeric pass-through or key lookup
 
 When `spaceIdOrKey` is provided, resolves it via `resolveSpaceId` before setting the `space-id` query param.
 
-Cursor-based pagination — follow `_links.next` prepended with `this.baseUrl` for subsequent pages.
+Cursor-based pagination — single-hop. The caller drives pagination by passing the `cursor` from `_links.next` (prepended with `this.baseUrl`) back into the next call.
 
 ### createPage
 
@@ -283,7 +285,7 @@ The `body` field in `CreatePageAttrs` is a serialized ADF JSON string. The metho
 
 `PUT /wiki/api/v2/pages/{id}`
 
-Internally calls `getPage(pageId)` first to read `version.number`, validates `body` against `AdfSchema`, then sends the update with `version.number + 1` and `message: "Updated via CLI"`. The caller provides only `title` and `body` — version management is fully hidden. The method injects `id` and `status: "current"` into the request body and wraps `body` in the representation envelope.
+Validates `body` against `AdfSchema` first, then calls `getPage(pageId)` to read `version.number`, and sends the update with `version.number + 1` and `message: "Updated via CLI"`. The caller provides only `title` and `body` — version management is fully hidden. The method injects `id` and `status: "current"` into the request body and wraps `body` in the representation envelope.
 
 ### deletePage
 
@@ -295,7 +297,7 @@ Moves page to trash. Returns 204 (no body). Uses raw `fetch` with `this.headers`
 
 `GET /wiki/rest/api/content/search?cql=...&limit=...`
 
-The v2 API has no search endpoint — uses the **v1 CQL endpoint**. The method URL-encodes `cql`, fetches the raw v1 response, and maps each hit to `{ id, title, excerpt, url }` before validating against `SearchResultSchema`. CQL reference: [Advanced searching using CQL](https://developer.atlassian.com/cloud/confluence/advanced-searching-using-cql/)
+The v2 API has no search endpoint — uses the **v1 CQL endpoint**. The method URL-encodes `cql`, fetches the raw v1 response, and maps each hit to `{ id, title, excerpt, url }` before validating against `SearchResultSchema`. Pagination is single-hop like `getPages` — the caller passes `cursor` from `_links.next` for subsequent pages. CQL reference: [Advanced searching using CQL](https://developer.atlassian.com/cloud/confluence/advanced-searching-using-cql/)
 
 ### getDescendants
 
@@ -311,7 +313,7 @@ Returns a flat `DescendantPage[]` for the full page tree of a space. Fetches roo
 2. Fetches root-level pages via `GET /wiki/api/v2/spaces/{spaceId}/pages?depth=root&status=current`, parsing with `PaginatedPagesSchema`. Auto-paginates via `_links.next` prepended with `this.baseUrl`.
 3. If `depth <= 0`, returns roots only — skips descendant fetching.
 4. Otherwise calls `getDescendants(rootId, { depth })` for each root in parallel.
-5. Merges roots (as `DescendantPage` with `depth: 0`) and all descendants into a flat array.
+5. Merges roots (converted to `DescendantPage` with `depth: 0`, `childPosition: 0`, `type: 'page'`, and `parentId` defaulting to `''` if absent) and all descendants into a flat array.
 
 ## Usage
 
