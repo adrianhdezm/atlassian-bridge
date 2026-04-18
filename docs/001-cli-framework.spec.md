@@ -15,6 +15,88 @@ src/cli/
 └── program.ts      CLI orchestrator — dispatch + help (deps: all above, parser, help)
 ```
 
+## Module Exports
+
+### cli-models.ts
+
+Re-exports `AppError` from `src/shared/app-error.ts`. Defines Zod schemas and inferred types:
+
+- `ArgumentDefSchema` / `ArgumentDef`
+- `OptionDefSchema` / `OptionDef`
+- `type Action = (args: Record<string, unknown>, opts: Record<string, unknown>) => void | Promise<void>`
+- `type OutputWriter = (message: string) => void`
+
+### syntax.ts
+
+Parses syntax strings into partial definition objects. Callers attach `description` and `defaultValue`.
+
+```ts
+parseArgumentSyntax(syntax: string): Pick<ArgumentDef, 'name' | 'required' | 'variadic'>
+parseOptionSyntax(syntax: string): Pick<OptionDef, 'short' | 'long' | 'valueName'>
+buildArgsSchema(argDefs: readonly ArgumentDef[]): ZodObject
+buildOptsSchema(optDefs: readonly OptionDef[]): ZodObject
+validate(schema: ZodType, data: unknown): Record<string, unknown>
+```
+
+`buildArgsSchema` defaults variadic args to `[]`. `buildOptsSchema` defaults boolean flags to `false` and applies `defaultValue` when present. `validate` throws `AppError` on failure — the error message includes all Zod issues joined by `, `.
+
+Argument-order validation (`required` after `optional`, anything after `variadic`) is **not** exported — it is inlined in `Subcommand.argument()` in `command.ts`.
+
+### parser.ts
+
+Single exported function. Tokenizes, maps positionals, and resolves options in one pass.
+
+```ts
+parseTokens(
+  tokens: string[],
+  argDefs: readonly ArgumentDef[],
+  optDefs: readonly OptionDef[]
+): { args: Record<string, unknown>; opts: Record<string, unknown> }
+```
+
+No separate `tokenizeArgv`, `mapPositionals`, or `resolveOptions` functions.
+
+Throws `AppError` for structural token errors (unknown options, missing option values, unexpected positionals, `--flag=value` on boolean flags). Missing required arguments are caught by Zod validation downstream, not by the parser.
+
+### help.ts
+
+All formatters take decomposed primitives — no `Meta` wrapper objects.
+
+```ts
+formatVersion(name: string, version: string): string
+formatRootHelp(name, description, commands: Entry[], namespaces: Entry[], globalOptions: OptionDef[]): string
+formatNamespaceHelp(binName, nsName, nsDescription, commands: Entry[]): string
+formatCommandHelp(binName, prefix, cmdName, cmdDescription, subcommands: Entry[]): string
+formatSubcommandHelp(binName, prefix, cmdName, subName, subDescription, args: ArgumentDef[], subOptions: OptionDef[], globalOptions: OptionDef[]): string
+```
+
+`Entry` is a local interface: `{ name: string; description: string }`.
+
+### command.ts
+
+```ts
+export class Subcommand   // fluent builder, holds args + options + action
+export class Command       // holds name, description, Map<string, Subcommand>
+```
+
+`Subcommand` exposes `get meta` (getter, not method) returning `{ name, description, args, options }`. `Command` exposes `get meta` returning `{ name, description, subcommands: Map }`.
+
+### namespace.ts
+
+```ts
+export class Namespace     // holds name, description, Map<string, Command>
+```
+
+`get meta` returns `{ name, description, commands: Map }`.
+
+### program.ts
+
+```ts
+export class Program       // top-level orchestrator
+```
+
+`Program` does not expose a `meta` accessor.
+
 ## API Surface
 
 Commands live at two levels:
@@ -93,6 +175,20 @@ Each level (`<bin>`, `<bin> <ns>`, `<bin> <ns> <cmd>`) prints contextual help li
 
 - **Arguments:** `<name>` required, `[name]` optional, `[name...]` variadic. Required cannot follow optional. Nothing can follow variadic.
 - **Options:** `"-s, --status <name>"` takes a value, `"--verbose"` is a boolean flag. No `--no-<flag>` negation syntax. Value-taking long flags accept `--flag=value` as equivalent to `--flag value`. Using `=` with a boolean flag is an error.
+
+### Parsed Definitions
+
+Syntax strings are parsed into typed definition objects used by the rest of the framework.
+
+```ts
+// ArgumentDef
+{ name: string; required: boolean; variadic: boolean; description: string }
+
+// OptionDef
+{ long: string; short?: string; valueName?: string; description: string; defaultValue?: string }
+```
+
+`valueName` replaces a boolean `takesValue` flag — its presence means the option takes a value, and the string itself is the placeholder shown in help (e.g. `"level"` from `--priority <level>`). Absence means the option is a boolean flag.
 
 ## Parse Lifecycle
 
