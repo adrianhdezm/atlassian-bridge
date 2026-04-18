@@ -25,7 +25,7 @@ See `docs/cli-architecture.md` for the full CLI framework design.
 
 ## Code Style
 
-- **Node:** >=24 (pinned 24.14.0 in `.node-version`), ESM (`"type": "module"`)
+- **Node:** >=22.12 (pinned 24.14.0 in `.node-version`), ESM (`"type": "module"`)
 - **TypeScript:** Strict mode with `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`
 - **Imports:** Use `import type` for type-only imports (enforced). Use `.js` extensions in relative imports (NodeNext resolution).
 - **Prettier:** Single quotes, 140 char width, no trailing commas

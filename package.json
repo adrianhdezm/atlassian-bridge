@@ -6,7 +6,7 @@
   "author": "Adrian Hernandez-Mendez",
   "license": "MIT",
   "engines": {
-    "node": ">=24"
+    "node": ">=22.12"
   },
   "files": [
     "dist",
@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^25.6.0",
+    "@types/node": "^22.0.0",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
