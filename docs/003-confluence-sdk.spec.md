@@ -6,8 +6,8 @@ Thin client for Confluence Cloud REST API v2 page operations. Lives in `src/conf
 
 ```
 src/confluence/
-├── confluence-models.ts    Zod schemas for API responses (deps: zod)
-└── confluence-client.ts   ConfluenceClient class — auth, pages, search, space key resolution (deps: confluence-models, shared/adf-schema, shared/app-error, http-client)
+├── confluence-models.ts    Zod schemas + confluencePaginatedSchema factory for API responses (deps: zod)
+└── confluence-client.ts   ConfluenceClient class — auth, pages, search, space key resolution (deps: confluence-models, shared/adf-schema, shared/app-error, http-client/fetchJsonObject, http-client/fetchAll)
 ```
 
 ## ConfluenceClient
@@ -42,6 +42,23 @@ export class ConfluenceClient {
 ```
 
 ## Zod Schemas
+
+### Paginated Schema Factory
+
+All Confluence paginated responses share the same envelope: `{ results: T[], _links: { next?: string } }`. A factory function eliminates the duplication:
+
+```ts
+export function confluencePaginatedSchema<T extends z.ZodTypeAny>(itemSchema: T) {
+  return z.object({
+    results: z.array(itemSchema),
+    _links: z.object({
+      next: z.string().optional()
+    })
+  });
+}
+```
+
+Used to build `PaginatedPagesSchema`, `SearchResultSchema`, `PaginatedDescendantsSchema`, and the internal `RawSearchSchema` in `confluence-client.ts`.
 
 ### Page
 
@@ -79,15 +96,13 @@ type Page = z.infer<typeof PageSchema>;
 
 ### Paginated Response
 
+Built via the `confluencePaginatedSchema` factory:
+
 ```ts
-const PaginatedPagesSchema = z.object({
-  results: z.array(PageSchema),
-  _links: z.object({
-    next: z.string().optional()
-  })
-});
+const PaginatedPagesSchema = confluencePaginatedSchema(PageSchema);
 
 type PaginatedPages = z.infer<typeof PaginatedPagesSchema>;
+// { results: Page[]; _links: { next?: string } }
 ```
 
 ### Search Result
@@ -102,18 +117,14 @@ const SearchResultItemSchema = z.object({
   url: z.string()
 });
 
-const SearchResultSchema = z.object({
-  results: z.array(SearchResultItemSchema),
-  _links: z.object({
-    next: z.string().optional()
-  })
-});
+const SearchResultSchema = confluencePaginatedSchema(SearchResultItemSchema);
 
 type SearchResultItem = z.infer<typeof SearchResultItemSchema>;
 type SearchResult = z.infer<typeof SearchResultSchema>;
+// { results: SearchResultItem[]; _links: { next?: string } }
 ```
 
-The `searchPages` method maps the raw v1 response into this flat shape before returning — callers never see the nested `content` wrapper.
+The `searchPages` method maps the raw v1 response into this flat shape before returning — callers never see the nested `content` wrapper. The internal `RawSearchSchema` in `confluence-client.ts` also uses `confluencePaginatedSchema` with the raw v1 item shape.
 
 ### Space
 
@@ -149,16 +160,12 @@ type DescendantPage = z.infer<typeof DescendantPageSchema>;
 
 ### Paginated Descendants Response
 
-Raw API response shape before flattening into `DescendantPage[]`.
+Raw API response shape before flattening into `DescendantPage[]`. Built via the factory:
 
 ```ts
-export const PaginatedDescendantsSchema = z.object({
-  results: z.array(DescendantPageSchema),
-  _links: z.object({
-    next: z.string().optional()
-  })
-});
-export type PaginatedDescendants = z.infer<typeof PaginatedDescendantsSchema>;
+const PaginatedDescendantsSchema = confluencePaginatedSchema(DescendantPageSchema);
+type PaginatedDescendants = z.infer<typeof PaginatedDescendantsSchema>;
+// { results: DescendantPage[]; _links: { next?: string } }
 ```
 
 ## Internal State
@@ -303,14 +310,14 @@ The v2 API has no search endpoint — uses the **v1 CQL endpoint**. The method U
 
 `GET /wiki/api/v2/pages/{id}/descendants?depth=5&limit=250`
 
-Returns a flat `DescendantPage[]`. Auto-paginates by following `_links.next` prepended with `this.baseUrl`. The `depth` param controls tree depth (default 5), `limit` controls per-request page size (default/max 250).
+Returns a flat `DescendantPage[]`. Auto-paginates via `fetchAll` from `http-client.ts` — the `getCursor` callback prepends `this.baseUrl` to `_links.next` to form the full URL for the next page. The `depth` param controls tree depth (default 5), `limit` controls per-request page size (default/max 250).
 
 ### getSpaceTree
 
 Returns a flat `DescendantPage[]` for the full page tree of a space. Fetches root pages then descendants up to `depth` levels (default 2, max 10).
 
 1. Resolves `spaceIdOrKey` via `resolveSpaceId` to a numeric ID.
-2. Fetches root-level pages via `GET /wiki/api/v2/spaces/{spaceId}/pages?depth=root&status=current`, parsing with `PaginatedPagesSchema`. Auto-paginates via `_links.next` prepended with `this.baseUrl`.
+2. Fetches root-level pages via `GET /wiki/api/v2/spaces/{spaceId}/pages?depth=root&status=current`, parsing with `PaginatedPagesSchema`. Auto-paginates via `fetchAll` — same cursor pattern as `getDescendants`.
 3. If `depth <= 0`, returns roots only — skips descendant fetching.
 4. Otherwise calls `getDescendants(rootId, { depth })` for each root in parallel.
 5. Merges roots (converted to `DescendantPage` with `depth: 0`, `childPosition: 0`, `type: 'page'`, and `parentId` defaulting to `''` if absent) and all descendants into a flat array.
@@ -345,4 +352,4 @@ Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additi
 
 ## Testing
 
-Tests in `tests/confluence/confluence-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: constructor (auth headers, URL building), getPage, getPages, createPage (ADF validation, representation envelope), updatePage (version fetch, ADF validation), deletePage (204 assertion), searchPages (CQL encoding, v1 response flattening), getDescendants (auto-pagination, depth/limit params), getSpaceTree (root fetch + parallel descendants, depth merging), resolveSpaceId (numeric pass-through, alpha key lookup, caching, not-found error).
+Tests in `tests/confluence/confluence-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `confluencePaginatedSchema` (parsing with next link, empty results, invalid item rejection); constructor (auth headers, URL building), getPage, getPages, createPage (ADF validation, representation envelope), updatePage (version fetch, ADF validation), deletePage (204 assertion), searchPages (CQL encoding, v1 response flattening), getDescendants (auto-pagination via `fetchAll`, depth/limit params), getSpaceTree (root fetch + parallel descendants, depth merging), resolveSpaceId (numeric pass-through, alpha key lookup, caching, not-found error).

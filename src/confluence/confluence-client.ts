@@ -1,8 +1,9 @@
 import { z } from 'zod';
-import { fetchJsonObject } from '../http-client/http-client.js';
+import { fetchAll, fetchJsonObject } from '../http-client/http-client.js';
 import { AdfSchema } from '../shared/adf-schema.js';
 import { AppError } from '../shared/app-error.js';
 import {
+  confluencePaginatedSchema,
   PageSchema,
   PaginatedPagesSchema,
   PaginatedDescendantsSchema,
@@ -10,21 +11,16 @@ import {
   SpaceLookupSchema,
   SpaceSchema
 } from './confluence-models.js';
-import type { Page, PaginatedPages, PaginatedDescendants, SearchResult, DescendantPage, Space } from './confluence-models.js';
+import type { Page, PaginatedPages, SearchResult, DescendantPage, Space } from './confluence-models.js';
 
-const RawSearchSchema = z.object({
-  results: z.array(
-    z.object({
-      content: z.object({ id: z.string() }),
-      title: z.string(),
-      excerpt: z.string(),
-      url: z.string()
-    })
-  ),
-  _links: z.object({
-    next: z.string().optional()
+const RawSearchSchema = confluencePaginatedSchema(
+  z.object({
+    content: z.object({ id: z.string() }),
+    title: z.string(),
+    excerpt: z.string(),
+    url: z.string()
   })
-});
+);
 
 export interface ConfluenceClientConfig {
   baseUrl: string;
@@ -198,29 +194,27 @@ export class ConfluenceClient {
   async getDescendants(pageId: string, options?: GetDescendantsOptions): Promise<DescendantPage[]> {
     const depth = options?.depth ?? 5;
     const limit = options?.limit ?? 250;
-    const results: DescendantPage[] = [];
+    const initialUrl = `${this.v2Url}/pages/${pageId}/descendants?depth=${depth}&limit=${limit}`;
 
-    let url: string | undefined = `${this.v2Url}/pages/${pageId}/descendants?depth=${depth}&limit=${limit}`;
-    while (url !== undefined) {
-      const resp: PaginatedDescendants = await fetchJsonObject(PaginatedDescendantsSchema, url, { headers: this.headers });
-      results.push(...resp.results);
-      url = resp._links.next ? `${this.baseUrl}${resp._links.next}` : undefined;
-    }
-
-    return results;
+    return fetchAll({
+      fetchPage: (cursor) => fetchJsonObject(PaginatedDescendantsSchema, cursor ?? initialUrl, { headers: this.headers }),
+      getItems: (page) => page.results,
+      getCursor: (page) => (page._links.next ? `${this.baseUrl}${page._links.next}` : undefined)
+    });
   }
 
   async getSpaceTree(spaceIdOrKey: string, options?: GetSpaceTreeOptions): Promise<DescendantPage[]> {
     const depth = options?.depth ?? 2;
     const spaceId = await this.resolveSpaceId(spaceIdOrKey);
 
-    const rootPages: Page[] = [];
-    let url: string | undefined = `${this.v2Url}/spaces/${spaceId}/pages?depth=root&status=current`;
-    while (url !== undefined) {
-      const resp: PaginatedPages = await fetchJsonObject(PaginatedPagesSchema, url, { headers: this.headers });
-      rootPages.push(...resp.results);
-      url = resp._links.next ? `${this.baseUrl}${resp._links.next}` : undefined;
-    }
+    const rootPages = await fetchAll({
+      fetchPage: (cursor) =>
+        fetchJsonObject(PaginatedPagesSchema, cursor ?? `${this.v2Url}/spaces/${spaceId}/pages?depth=root&status=current`, {
+          headers: this.headers
+        }),
+      getItems: (page) => page.results,
+      getCursor: (page) => (page._links.next ? `${this.baseUrl}${page._links.next}` : undefined)
+    });
 
     const roots: DescendantPage[] = rootPages.map((p) => ({
       id: p.id,

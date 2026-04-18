@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+export function confluencePaginatedSchema<T extends z.ZodTypeAny>(itemSchema: T) {
+  return z.object({
+    results: z.array(itemSchema),
+    _links: z.object({
+      next: z.string().optional()
+    })
+  });
+}
+
 export const PageSchema = z.looseObject({
   id: z.string(),
   status: z.string(),
@@ -28,12 +37,7 @@ export const PageSchema = z.looseObject({
 
 export type Page = z.infer<typeof PageSchema>;
 
-export const PaginatedPagesSchema = z.object({
-  results: z.array(PageSchema),
-  _links: z.object({
-    next: z.string().optional()
-  })
-});
+export const PaginatedPagesSchema = confluencePaginatedSchema(PageSchema);
 
 export type PaginatedPages = z.infer<typeof PaginatedPagesSchema>;
 
@@ -46,12 +50,7 @@ export const SearchResultItemSchema = z.object({
 
 export type SearchResultItem = z.infer<typeof SearchResultItemSchema>;
 
-export const SearchResultSchema = z.object({
-  results: z.array(SearchResultItemSchema),
-  _links: z.object({
-    next: z.string().optional()
-  })
-});
+export const SearchResultSchema = confluencePaginatedSchema(SearchResultItemSchema);
 
 export type SearchResult = z.infer<typeof SearchResultSchema>;
 
@@ -67,12 +66,7 @@ export const DescendantPageSchema = z.looseObject({
 
 export type DescendantPage = z.infer<typeof DescendantPageSchema>;
 
-export const PaginatedDescendantsSchema = z.object({
-  results: z.array(DescendantPageSchema),
-  _links: z.object({
-    next: z.string().optional()
-  })
-});
+export const PaginatedDescendantsSchema = confluencePaginatedSchema(DescendantPageSchema);
 
 export type PaginatedDescendants = z.infer<typeof PaginatedDescendantsSchema>;
 

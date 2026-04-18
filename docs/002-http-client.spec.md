@@ -6,11 +6,29 @@ Thin fetch wrapper with Zod response validation. Lives in `src/http-client/` wit
 
 ```
 src/http-client/
-├── http-client.ts    fetchJsonObject — typed fetch + Zod parse + retry (deps: zod, backoff)
+├── http-client.ts    fetchJsonObject — typed fetch + Zod parse + retry; fetchAll — generic auto-pagination (deps: zod, backoff)
 └── backoff.ts        retryWithBackoff — generic async retry with exponential backoff (zero deps)
 ```
 
 ## API Surface
+
+### fetchAll
+
+Generic auto-pagination utility. Collects all items across paginated responses into a flat array. Pagination strategy is caller-defined via three callbacks — the function is agnostic to cursor style (URL-based, token-based, offset-based).
+
+```ts
+export async function fetchAll<TPage, TItem>(options: {
+  fetchPage: (cursor: string | undefined) => Promise<TPage>;
+  getItems: (page: TPage) => TItem[];
+  getCursor: (page: TPage) => string | undefined;
+}): Promise<TItem[]>;
+```
+
+- `fetchPage(cursor)` — fetches a single page. Called with `undefined` for the first page, then with the cursor returned by `getCursor` for subsequent pages.
+- `getItems(page)` — extracts the item array from the page response.
+- `getCursor(page)` — extracts the next-page cursor. Return `undefined` to stop.
+
+Used by `ConfluenceClient.getDescendants`, `ConfluenceClient.getSpaceTree`, and `JiraClient.getChildIssues` to replace inline pagination loops.
 
 ### fetchJsonObject
 
@@ -135,7 +153,7 @@ The return type `Promise<TData>` is inferred from the Zod schema passed as the f
 
 Tests in `tests/http-client/`:
 
-| File                  | Covers                                                                                                                       |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `http-client.test.ts` | Zod validation, retry on retryable statuses/network errors, non-retryable 4xx, custom retry options, SyntaxError on non-JSON |
-| `backoff.test.ts`     | First-success pass-through, eventual success, retry exhaustion, exponential delay, maxDelayMs cap, shouldRetry short-circuit |
+| File                  | Covers                                                                                                                                                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `http-client.test.ts` | `fetchAll` (single page, multi-page cursor following, empty results, cursor pass-through); `fetchJsonObject` (Zod validation, retry on retryable statuses/network errors, non-retryable 4xx, custom retry options, SyntaxError on non-JSON) |
+| `backoff.test.ts`     | First-success pass-through, eventual success, retry exhaustion, exponential delay, maxDelayMs cap, shouldRetry short-circuit                                                                                                                |

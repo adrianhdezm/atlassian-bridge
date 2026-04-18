@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { z } from 'zod';
 import { ConfluenceClient } from '../../src/confluence/confluence-client.js';
+import { confluencePaginatedSchema } from '../../src/confluence/confluence-models.js';
 import { AppError } from '../../src/shared/app-error.js';
 
 const BASE_URL = 'https://test.atlassian.net';
@@ -56,6 +58,38 @@ function createClient() {
     apiToken: 'token123'
   });
 }
+
+describe('confluencePaginatedSchema', () => {
+  const ItemSchema = z.object({ id: z.string(), name: z.string() });
+  const PaginatedSchema = confluencePaginatedSchema(ItemSchema);
+
+  it('parses a response with results and next link', () => {
+    const input = {
+      results: [{ id: '1', name: 'Item 1' }],
+      _links: { next: '/wiki/api/v2/items?cursor=abc' }
+    };
+
+    const result = PaginatedSchema.parse(input);
+
+    expect(result.results).toEqual([{ id: '1', name: 'Item 1' }]);
+    expect(result._links.next).toBe('/wiki/api/v2/items?cursor=abc');
+  });
+
+  it('parses a response with empty results and no next link', () => {
+    const input = { results: [], _links: {} };
+
+    const result = PaginatedSchema.parse(input);
+
+    expect(result.results).toEqual([]);
+    expect(result._links.next).toBeUndefined();
+  });
+
+  it('rejects invalid item shapes', () => {
+    const input = { results: [{ id: 123 }], _links: {} };
+
+    expect(() => PaginatedSchema.parse(input)).toThrow();
+  });
+});
 
 describe('confluence-client', () => {
   let client: ConfluenceClient;

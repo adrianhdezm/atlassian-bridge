@@ -6,8 +6,8 @@ Thin client for Jira Cloud REST API v3 issue, transition, search, and project op
 
 ```
 src/jira/
-├── jira-models.ts     Zod schemas for API responses (deps: zod)
-└── jira-client.ts     JiraClient class — auth, issues, transitions, search, projects (deps: jira-models, http-client, shared/adf-schema)
+├── jira-models.ts     Zod schemas + pagination base schemas for API responses (deps: zod)
+└── jira-client.ts     JiraClient class — auth, issues, transitions, search, projects (deps: jira-models, http-client/fetchJsonObject, http-client/fetchAll, shared/adf-schema)
 ```
 
 ADF schema is shared from `src/shared/adf-schema.ts` — no duplication. Jira validates ADF as an object (not a JSON string), so no `JSON.parse` step is needed.
@@ -49,6 +49,28 @@ export class JiraClient {
 `updateIssue`, `deleteIssue`, and `transitionIssue` return `void` — matching the Jira API's 204 No Content responses. `createIssue` returns a reference `{ id, key, self }`, not the full issue.
 
 ## Zod Schemas
+
+### Pagination Base Schemas
+
+Jira uses two distinct pagination styles. Base schemas capture the pagination metadata and are extended with `.extend()` to add the items array for each endpoint:
+
+```ts
+// Token-based pagination (used by issue search)
+export const JiraTokenPaginationSchema = z.object({
+  maxResults: z.number().optional(),
+  isLast: z.boolean().optional(),
+  nextPageToken: z.string().optional()
+});
+
+// Offset-based pagination (used by project search)
+export const JiraOffsetPaginationSchema = z.object({
+  startAt: z.number(),
+  maxResults: z.number(),
+  total: z.number()
+});
+```
+
+Concrete paginated schemas are built via `.extend()` — see Issue Search Result and Paginated Projects below.
 
 ### Issue
 
@@ -105,17 +127,15 @@ type Transition = z.infer<typeof TransitionSchema>;
 
 ### Issue Search Result
 
-Cursor-based pagination — uses `nextPageToken` / `maxResults` / `isLast`.
+Cursor-based pagination — uses `nextPageToken` / `maxResults` / `isLast`. Built by extending `JiraTokenPaginationSchema`:
 
 ```ts
-const IssueSearchResultSchema = z.object({
-  issues: z.array(IssueSchema),
-  maxResults: z.number().optional(),
-  isLast: z.boolean().optional(),
-  nextPageToken: z.string().optional()
+const IssueSearchResultSchema = JiraTokenPaginationSchema.extend({
+  issues: z.array(IssueSchema)
 });
 
 type IssueSearchResult = z.infer<typeof IssueSearchResultSchema>;
+// { issues: Issue[]; maxResults?: number; isLast?: boolean; nextPageToken?: string }
 ```
 
 ### Project
@@ -133,15 +153,15 @@ type Project = z.infer<typeof ProjectSchema>;
 
 ### Paginated Projects
 
+Built by extending `JiraOffsetPaginationSchema`:
+
 ```ts
-const PaginatedProjectsSchema = z.object({
-  startAt: z.number(),
-  maxResults: z.number(),
-  total: z.number(),
+const PaginatedProjectsSchema = JiraOffsetPaginationSchema.extend({
   values: z.array(ProjectSchema)
 });
 
 type PaginatedProjects = z.infer<typeof PaginatedProjectsSchema>;
+// { startAt: number; maxResults: number; total: number; values: Project[] }
 ```
 
 ## Internal State
@@ -309,7 +329,7 @@ Offset-based pagination. Appends `query` when provided for name-based filtering.
 
 `GET /rest/api/3/search/jql?jql=parent%3D{issueIdOrKey}&maxResults=100`
 
-Auto-paginates by following `nextPageToken` until all children are collected. Uses `maxResults: 100` as the internal page size. Returns a flat `Issue[]`.
+Auto-paginates via `fetchAll` from `http-client.ts` — the `getCursor` callback extracts `nextPageToken` and the `fetchPage` callback appends it as a query parameter. Uses `maxResults: 100` as the internal page size. Returns a flat `Issue[]`.
 
 ## Usage
 
@@ -342,4 +362,4 @@ Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additi
 
 ## Testing
 
-Tests in `tests/jira/jira-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: constructor (auth headers, URL building), getIssue, createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via nextPageToken).
+Tests in `tests/jira/jira-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue, createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).

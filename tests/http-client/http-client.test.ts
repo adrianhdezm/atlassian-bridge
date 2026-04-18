@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
-import { fetchJsonObject } from '../../src/http-client/http-client.js';
+import { fetchAll, fetchJsonObject } from '../../src/http-client/http-client.js';
 
 const TestSchema = z.object({
   id: z.string(),
@@ -24,6 +24,69 @@ function textResponse(body: string, status = 200, statusText = 'OK'): Response {
 }
 
 describe('http-client', () => {
+  describe('fetchAll', () => {
+    it('collects items from a single page', async () => {
+      const page: { items: number[]; next: string | undefined } = { items: [1, 2, 3], next: undefined };
+
+      const result = await fetchAll({
+        fetchPage: () => Promise.resolve(page),
+        getItems: (p) => p.items,
+        getCursor: (p) => p.next
+      });
+
+      expect(result).toEqual([1, 2, 3]);
+    });
+
+    it('follows cursors across multiple pages', async () => {
+      type Page = { items: string[]; next: string | undefined };
+      const pageMap = new Map<string | undefined, Page>([
+        [undefined, { items: ['a', 'b'], next: 'cursor1' }],
+        ['cursor1', { items: ['c'], next: 'cursor2' }],
+        ['cursor2', { items: ['d', 'e'], next: undefined }]
+      ]);
+
+      const result = await fetchAll({
+        fetchPage: (cursor) => Promise.resolve(pageMap.get(cursor) as Page),
+        getItems: (page) => page.items,
+        getCursor: (page) => page.next
+      });
+
+      expect(result).toEqual(['a', 'b', 'c', 'd', 'e']);
+    });
+
+    it('returns empty array when first page has no items', async () => {
+      const page: { items: number[]; next: string | undefined } = { items: [], next: undefined };
+
+      const result = await fetchAll({
+        fetchPage: () => Promise.resolve(page),
+        getItems: (p) => p.items,
+        getCursor: (p) => p.next
+      });
+
+      expect(result).toEqual([]);
+    });
+
+    it('passes cursor from previous page to fetchPage', async () => {
+      const cursors: (string | undefined)[] = [];
+      const first: { items: number[]; next: string | undefined } = { items: [1], next: 'abc' };
+      const last: { items: number[]; next: string | undefined } = { items: [2], next: undefined };
+
+      await fetchAll({
+        fetchPage: (cursor) => {
+          cursors.push(cursor);
+          if (cursor === undefined) {
+            return Promise.resolve(first);
+          }
+          return Promise.resolve(last);
+        },
+        getItems: (page) => page.items,
+        getCursor: (page) => page.next
+      });
+
+      expect(cursors).toEqual([undefined, 'abc']);
+    });
+  });
+
   describe('fetchJsonObject', () => {
     beforeEach(() => {
       vi.restoreAllMocks();

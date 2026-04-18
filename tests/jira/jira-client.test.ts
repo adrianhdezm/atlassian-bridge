@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { z } from 'zod';
 import { JiraClient } from '../../src/jira/jira-client.js';
+import { JiraTokenPaginationSchema, JiraOffsetPaginationSchema } from '../../src/jira/jira-models.js';
 
 const BASE_URL = 'https://test.atlassian.net';
 const API = `${BASE_URL}/rest/api/3`;
@@ -66,6 +68,69 @@ function createClient() {
     apiToken: 'token123'
   });
 }
+
+describe('JiraTokenPaginationSchema', () => {
+  it('parses token pagination metadata with all fields', () => {
+    const input = { maxResults: 50, isLast: false, nextPageToken: 'abc123' };
+
+    const result = JiraTokenPaginationSchema.parse(input);
+
+    expect(result.maxResults).toBe(50);
+    expect(result.isLast).toBe(false);
+    expect(result.nextPageToken).toBe('abc123');
+  });
+
+  it('parses with all optional fields omitted', () => {
+    const result = JiraTokenPaginationSchema.parse({});
+
+    expect(result.maxResults).toBeUndefined();
+    expect(result.isLast).toBeUndefined();
+    expect(result.nextPageToken).toBeUndefined();
+  });
+
+  it('extends with custom item arrays', () => {
+    const ItemSchema = z.object({ id: z.string() });
+    const ExtendedSchema = JiraTokenPaginationSchema.extend({ items: z.array(ItemSchema) });
+
+    const result = ExtendedSchema.parse({
+      items: [{ id: '1' }],
+      nextPageToken: 'next'
+    });
+
+    expect(result.items).toEqual([{ id: '1' }]);
+    expect(result.nextPageToken).toBe('next');
+  });
+});
+
+describe('JiraOffsetPaginationSchema', () => {
+  it('parses offset pagination metadata', () => {
+    const input = { startAt: 0, maxResults: 50, total: 100 };
+
+    const result = JiraOffsetPaginationSchema.parse(input);
+
+    expect(result.startAt).toBe(0);
+    expect(result.maxResults).toBe(50);
+    expect(result.total).toBe(100);
+  });
+
+  it('extends with custom item arrays', () => {
+    const ItemSchema = z.object({ name: z.string() });
+    const ExtendedSchema = JiraOffsetPaginationSchema.extend({ values: z.array(ItemSchema) });
+
+    const result = ExtendedSchema.parse({
+      startAt: 0,
+      maxResults: 25,
+      total: 50,
+      values: [{ name: 'Test' }]
+    });
+
+    expect(result.values).toEqual([{ name: 'Test' }]);
+  });
+
+  it('rejects when required fields are missing', () => {
+    expect(() => JiraOffsetPaginationSchema.parse({ startAt: 0 })).toThrow();
+  });
+});
 
 describe('jira-client', () => {
   let client: JiraClient;

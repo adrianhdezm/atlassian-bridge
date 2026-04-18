@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fetchJsonObject } from '../http-client/http-client.js';
+import { fetchAll, fetchJsonObject } from '../http-client/http-client.js';
 import { AdfSchema } from '../shared/adf-schema.js';
 import {
   IssueSchema,
@@ -206,26 +206,22 @@ export class JiraClient {
   }
 
   async getChildIssues(issueIdOrKey: string): Promise<Issue[]> {
-    const allIssues: Issue[] = [];
-    let nextPageToken: string | undefined;
-
-    do {
-      const params = new URLSearchParams({
-        jql: `parent=${issueIdOrKey}`,
-        maxResults: '100',
-        fields: DEFAULT_ISSUE_FIELDS.join(',')
-      });
-      if (nextPageToken !== undefined) {
-        params.set('nextPageToken', nextPageToken);
-      }
-
-      const result = await fetchJsonObject(IssueSearchResultSchema, `${this.apiUrl}/search/jql?${params.toString()}`, {
-        headers: this.headers
-      });
-      allIssues.push(...result.issues);
-      nextPageToken = result.nextPageToken;
-    } while (nextPageToken !== undefined);
-
-    return allIssues;
+    return fetchAll({
+      fetchPage: (cursor) => {
+        const params = new URLSearchParams({
+          jql: `parent=${issueIdOrKey}`,
+          maxResults: '100',
+          fields: DEFAULT_ISSUE_FIELDS.join(',')
+        });
+        if (cursor !== undefined) {
+          params.set('nextPageToken', cursor);
+        }
+        return fetchJsonObject(IssueSearchResultSchema, `${this.apiUrl}/search/jql?${params.toString()}`, {
+          headers: this.headers
+        });
+      },
+      getItems: (page) => page.issues,
+      getCursor: (page) => page.nextPageToken
+    });
   }
 }

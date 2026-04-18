@@ -1,6 +1,21 @@
 import type { z } from 'zod';
 import { retryWithBackoff } from './backoff.js';
 
+export async function fetchAll<TPage, TItem>(options: {
+  fetchPage: (cursor: string | undefined) => Promise<TPage>;
+  getItems: (page: TPage) => TItem[];
+  getCursor: (page: TPage) => string | undefined;
+}): Promise<TItem[]> {
+  const items: TItem[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await options.fetchPage(cursor);
+    items.push(...options.getItems(page));
+    cursor = options.getCursor(page);
+  } while (cursor !== undefined);
+  return items;
+}
+
 export interface RetryOptions {
   maxRetries?: number;
   initialDelayMs?: number;

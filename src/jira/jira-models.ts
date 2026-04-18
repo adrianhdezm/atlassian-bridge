@@ -1,5 +1,17 @@
 import { z } from 'zod';
 
+export const JiraTokenPaginationSchema = z.object({
+  maxResults: z.number().optional(),
+  isLast: z.boolean().optional(),
+  nextPageToken: z.string().optional()
+});
+
+export const JiraOffsetPaginationSchema = z.object({
+  startAt: z.number(),
+  maxResults: z.number(),
+  total: z.number()
+});
+
 export const IssueSchema = z.looseObject({
   id: z.string(),
   key: z.string(),
@@ -37,11 +49,8 @@ export const TransitionSchema = z.looseObject({
 
 export type Transition = z.infer<typeof TransitionSchema>;
 
-export const IssueSearchResultSchema = z.object({
-  issues: z.array(IssueSchema),
-  maxResults: z.number().optional(),
-  isLast: z.boolean().optional(),
-  nextPageToken: z.string().optional()
+export const IssueSearchResultSchema = JiraTokenPaginationSchema.extend({
+  issues: z.array(IssueSchema)
 });
 
 export type IssueSearchResult = z.infer<typeof IssueSearchResultSchema>;
@@ -55,10 +64,7 @@ export const ProjectSchema = z.looseObject({
 
 export type Project = z.infer<typeof ProjectSchema>;
 
-export const PaginatedProjectsSchema = z.object({
-  startAt: z.number(),
-  maxResults: z.number(),
-  total: z.number(),
+export const PaginatedProjectsSchema = JiraOffsetPaginationSchema.extend({
   values: z.array(ProjectSchema)
 });
 
