@@ -177,7 +177,7 @@ Methods that accept a space identifier (`getPages`, `createPage`, `getSpaceTree`
 
 1. If `/^\d+$/` matches → return the value as-is (it's already an ID).
 2. Check `spaceKeyCache` → return cached ID if present.
-3. Fetch `GET /wiki/api/v2/spaces?keys=<key>` and parse with `SpaceLookupSchema`.
+3. Fetch `GET /wiki/api/v2/spaces?keys=${encodeURIComponent(key)}` and parse with `SpaceLookupSchema`.
 4. If `results` is empty → throw `AppError("Space not found: <key>")`.
 5. Cache and return the first result's `id`.
 
@@ -308,7 +308,7 @@ Returns a flat `DescendantPage[]`. Auto-paginates by following `_links.next` pre
 Returns a flat `DescendantPage[]` for the full page tree of a space. Fetches root pages then descendants up to `depth` levels (default 2, max 10).
 
 1. Resolves `spaceIdOrKey` via `resolveSpaceId` to a numeric ID.
-2. Fetches root-level pages via `GET /wiki/api/v2/spaces/{spaceId}/pages?depth=root&status=current`, auto-paginating via `_links.next` prepended with `this.baseUrl`.
+2. Fetches root-level pages via `GET /wiki/api/v2/spaces/{spaceId}/pages?depth=root&status=current`, parsing with `PaginatedPagesSchema`. Auto-paginates via `_links.next` prepended with `this.baseUrl`.
 3. If `depth <= 0`, returns roots only — skips descendant fetching.
 4. Otherwise calls `getDescendants(rootId, { depth })` for each root in parallel.
 5. Merges roots (as `DescendantPage` with `depth: 0`) and all descendants into a flat array.
@@ -343,4 +343,4 @@ Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additi
 
 ## Testing
 
-Tests in `tests/confluence/confluence-client.test.ts`. Covers: constructor (auth headers, URL building), getPage, getPages, createPage (ADF validation, representation envelope), updatePage (version fetch, ADF validation), deletePage (204 assertion), searchPages (CQL encoding, v1 response flattening), getDescendants (auto-pagination, depth/limit params), getSpaceTree (root fetch + parallel descendants, depth merging), resolveSpaceId (numeric pass-through, alpha key lookup, caching, not-found error).
+Tests in `tests/confluence/confluence-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: constructor (auth headers, URL building), getPage, getPages, createPage (ADF validation, representation envelope), updatePage (version fetch, ADF validation), deletePage (204 assertion), searchPages (CQL encoding, v1 response flattening), getDescendants (auto-pagination, depth/limit params), getSpaceTree (root fetch + parallel descendants, depth merging), resolveSpaceId (numeric pass-through, alpha key lookup, caching, not-found error).
