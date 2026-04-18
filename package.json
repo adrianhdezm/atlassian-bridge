@@ -22,7 +22,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "release": "./scripts/release.sh"
+    "release": "./scripts/release.sh",
+    "ci": "pnpm lint && pnpm test && pnpm format && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
