@@ -269,12 +269,13 @@ describe('jira-client', () => {
 
   describe('updateIssue', () => {
     it('sends partial update with only provided fields', async () => {
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }));
+      const updated = makeIssue({ fields: { ...makeIssue().fields, summary: 'Updated title' } });
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(updated));
 
       await client.updateIssue('PROJ-1', { summary: 'Updated title' });
 
       const call = fetchSpy.mock.calls[0];
-      expect(call[0]).toBe(`${API}/issue/PROJ-1`);
+      expect(call[0]).toBe(`${API}/issue/PROJ-1?returnIssue=true`);
       expect(call[1]!.method).toBe('PUT');
       const body = JSON.parse(call[1]!.body as string) as Record<string, unknown>;
       const fields = body['fields'] as Record<string, unknown>;
@@ -284,7 +285,10 @@ describe('jira-client', () => {
     });
 
     it('sends all fields when all are provided', async () => {
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }));
+      const updated = makeIssue({
+        fields: { ...makeIssue().fields, summary: 'New title', description: validAdf, labels: ['backend', 'urgent'] }
+      });
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(updated));
 
       await client.updateIssue('PROJ-1', { summary: 'New title', description: validAdf, labels: ['backend', 'urgent'] });
 
@@ -303,10 +307,14 @@ describe('jira-client', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it('returns void on success', async () => {
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }));
+    it('returns updated Issue on success', async () => {
+      const updated = makeIssue({ fields: { ...makeIssue().fields, summary: 'Updated' } });
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(updated));
 
-      await expect(client.updateIssue('PROJ-1', { summary: 'Updated' })).resolves.toBeUndefined();
+      const result = await client.updateIssue('PROJ-1', { summary: 'Updated' });
+
+      expect(result.key).toBe('PROJ-1');
+      expect(result.fields.summary).toBe('Updated');
     });
 
     it('throws on non-ok response', async () => {

@@ -305,12 +305,12 @@ export function buildProgram(configDir?: string): Program {
       const summary = opts['summary'] as string | undefined;
       const description = opts['description'] as string | undefined;
       const labels = opts['labels'] as string | undefined;
-      await client.updateIssue(args['issueKey'] as string, {
+      const result = await client.updateIssue(args['issueKey'] as string, {
         ...(summary !== undefined ? { summary } : {}),
         ...(description !== undefined ? { description: JSON.parse(description) as object } : {}),
         ...(labels !== undefined ? { labels: labels.split(',') } : {})
       });
-      console.log('Done.');
+      console.log(JSON.stringify(result, null, 2));
     });
 
   issues

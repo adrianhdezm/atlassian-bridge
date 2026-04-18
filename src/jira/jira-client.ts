@@ -112,7 +112,7 @@ export class JiraClient {
     });
   }
 
-  async updateIssue(issueIdOrKey: string, input: UpdateIssueAttrs): Promise<void> {
+  async updateIssue(issueIdOrKey: string, input: UpdateIssueAttrs): Promise<Issue> {
     if (input.description) {
       AdfSchema.parse(input.description);
     }
@@ -128,14 +128,11 @@ export class JiraClient {
       fields['labels'] = input.labels;
     }
 
-    const response = await fetch(`${this.apiUrl}/issue/${issueIdOrKey}`, {
+    return fetchJsonObject(IssueSchema, `${this.apiUrl}/issue/${issueIdOrKey}?returnIssue=true`, {
       method: 'PUT',
       headers: this.headers,
       body: JSON.stringify({ fields })
     });
-    if (!response.ok) {
-      throw new HttpError(response.status, response.statusText);
-    }
   }
 
   async deleteIssue(issueIdOrKey: string): Promise<void> {

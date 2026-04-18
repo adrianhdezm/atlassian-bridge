@@ -454,8 +454,8 @@ describe('ab-cli', () => {
   // ── jira issues update ──────────────────────────────────────
 
   describe('jira issues update', () => {
-    it('sends partial update with description parse', async () => {
-      mockJira.updateIssue.mockResolvedValue(undefined);
+    it('sends partial update with description parse and prints updated issue', async () => {
+      mockJira.updateIssue.mockResolvedValue({ id: '1', key: 'PROJ-1', fields: { summary: 'New' } });
       const desc = '{"type":"doc","content":[]}';
 
       const { logs } = await run(['jira', 'issues', 'update', 'PROJ-1', '--summary', 'New', '--description', desc, '--labels', 'a,b']);
@@ -465,15 +465,16 @@ describe('ab-cli', () => {
         description: JSON.parse(desc) as object,
         labels: ['a', 'b']
       });
-      expect(logs).toContain('Done.');
+      expect(logs[0]).toContain('"key": "PROJ-1"');
     });
 
     it('sends only provided fields', async () => {
-      mockJira.updateIssue.mockResolvedValue(undefined);
+      mockJira.updateIssue.mockResolvedValue({ id: '1', key: 'PROJ-1', fields: { summary: 'Changed' } });
 
-      await run(['jira', 'issues', 'update', 'PROJ-1', '--summary', 'Changed']);
+      const { logs } = await run(['jira', 'issues', 'update', 'PROJ-1', '--summary', 'Changed']);
 
       expect(mockJira.updateIssue).toHaveBeenCalledWith('PROJ-1', { summary: 'Changed' });
+      expect(logs[0]).toContain('"key": "PROJ-1"');
     });
   });
 

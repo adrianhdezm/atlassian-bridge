@@ -106,7 +106,7 @@ const client = new ConfluenceClient(creds); // or JiraClient(creds)
 Actions print results to stdout via `console.log`:
 
 - **Data operations** — `console.log(JSON.stringify(result, null, 2))`
-- **Void operations** (delete, transition, Jira update) — `console.log('Done.')`
+- **Void operations** (delete, transition) — `console.log('Done.')`
 
 ## Async Error Handling
 
@@ -397,7 +397,7 @@ ab jira issues update <issueKey> [flags]
 
 Same `--description` parse and `--labels` split behavior as `create`.
 
-SDK: `updateIssue(issueKey, { summary, description, labels })` → prints `"Done."`
+SDK: `updateIssue(issueKey, { summary, description, labels })` → prints the updated issue as JSON
 
 #### `delete <issueKey>`
 

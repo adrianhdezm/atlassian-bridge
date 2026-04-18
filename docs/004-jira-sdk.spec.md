@@ -27,7 +27,7 @@ export class JiraClient {
   // Issues
   getIssue(issueIdOrKey: string): Promise<Issue>;
   createIssue(input: CreateIssueAttrs): Promise<CreatedIssue>;
-  updateIssue(issueIdOrKey: string, input: UpdateIssueAttrs): Promise<void>;
+  updateIssue(issueIdOrKey: string, input: UpdateIssueAttrs): Promise<Issue>;
   deleteIssue(issueIdOrKey: string): Promise<void>;
 
   // Transitions
@@ -46,7 +46,7 @@ export class JiraClient {
 }
 ```
 
-`updateIssue`, `deleteIssue`, and `transitionIssue` return `void` — matching the Jira API's 204 No Content responses. `createIssue` returns a reference `{ id, key, self }`, not the full issue.
+`deleteIssue` and `transitionIssue` return `void` — matching the Jira API's 204 No Content responses. `createIssue` returns a reference `{ id, key, self }`, not the full issue. `updateIssue` returns the full updated `Issue` — enabled by the `returnIssue=true` query parameter.
 
 ## Zod Schemas
 
@@ -257,7 +257,7 @@ Validates `description` against `AdfSchema` when provided. Wraps `projectKey` as
 
 ### updateIssue
 
-`PUT /rest/api/3/issue/{issueIdOrKey}`
+`PUT /rest/api/3/issue/{issueIdOrKey}?returnIssue=true`
 
 Request body sent to API:
 
@@ -271,7 +271,7 @@ Request body sent to API:
 }
 ```
 
-Only includes fields that are provided in `UpdateIssueAttrs` — partial update. Validates `description` against `AdfSchema` when provided. Returns 204 — uses raw `fetch`, asserts `response.ok`.
+Only includes fields that are provided in `UpdateIssueAttrs` — partial update. Validates `description` against `AdfSchema` when provided. Returns the full updated `Issue` — uses `fetchJsonObject` with `IssueSchema`, enabled by the `returnIssue=true` query parameter.
 
 ### deleteIssue
 
@@ -358,8 +358,8 @@ const results = await client.searchIssues({ jql: 'project = "PROJ" AND status = 
 
 ## Error Handling
 
-Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createIssue` and `updateIssue` throw `ZodError` if the ADF description is invalid — before any HTTP request, only when `description` is provided. Void methods (`updateIssue`, `deleteIssue`, `transitionIssue`) use raw `fetch` and throw `HttpError` on non-ok responses — note that void methods using raw `fetch` do **not** retry on transient errors (unlike `fetchJsonObject`, which retries via `retryWithBackoff`).
+Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createIssue` and `updateIssue` throw `ZodError` if the ADF description is invalid — before any HTTP request, only when `description` is provided. Void methods (`deleteIssue`, `transitionIssue`) use raw `fetch` and throw `HttpError` on non-ok responses — note that void methods using raw `fetch` do **not** retry on transient errors (unlike `fetchJsonObject`, which retries via `retryWithBackoff`).
 
 ## Testing
 
-Tests in `tests/jira/jira-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue, createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).
+Tests in `tests/jira/jira-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue, createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).
