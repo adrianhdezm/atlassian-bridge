@@ -35,7 +35,7 @@ Global option: `-v, --verbose` (available on all commands).
 
 ```
 src/
-└── ab-cli.ts    CLI entry — program, namespaces, commands, actions (deps: cli/program, shared/app-error, auth/credential-storage, jira/jira-client, confluence/confluence-client)
+└── ab-cli.ts    CLI entry — program, namespaces, commands, actions (deps: node:fs, node:path, node:url, cli/program, shared/app-error, auth/credential-storage, jira/jira-client, confluence/confluence-client)
 ```
 
 ## Program
@@ -43,19 +43,27 @@ src/
 The program is built inside a factory function so tests can instantiate it independently:
 
 ```ts
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Program } from './cli/program.js';
+
+const packageJsonPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+const { version } = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version: string };
 
 export function buildProgram(configDir?: string): Program {
   const credentialStorage = new CredentialStorage(configDir);
   // loadCredentials() defined here — closes over credentialStorage
   const program = new Program();
-  program.name('ab').description('Atlassian Bridge — Jira & Confluence from the terminal').version('0.1.0');
-  // --version output: "0.1.0" (version string only, no program name prefix)
+  program.name('ab').description('Atlassian Bridge — Jira & Confluence from the terminal').version(version);
+  // --version output: version string from package.json (no program name prefix)
   program.option('-v, --verbose', 'Enable verbose output');
   // ... register namespaces, commands, subcommands ...
   return program;
 }
 ```
+
+The version is read from `package.json` at module load time using `node:fs`. The path is resolved relative to the module file via `import.meta.url`, so it works from both `src/` (dev/tsx) and `dist/` (compiled) since both are one level below the project root.
 
 The optional `configDir` is passed through to `CredentialStorage`. When omitted (production), defaults to `~/.ab-cli`. Tests pass a temp directory for isolation.
 
