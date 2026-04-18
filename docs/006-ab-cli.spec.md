@@ -98,11 +98,11 @@ const client = new ConfluenceClient(creds); // or JiraClient(creds)
 Actions print results to stdout via `console.log`:
 
 - **Data operations** — `console.log(JSON.stringify(result, null, 2))`
-- **Void operations** (delete, update, transition) — `console.log('Done.')`
+- **Void operations** (delete, transition, Jira update) — `console.log('Done.')`
 
 ## Async Error Handling
 
-All actions are async (SDK calls return promises). The framework fires actions with `void action(...)` (fire-and-forget), so the entry point registers a global handler inside the `isMainModule` guard:
+Most actions are async (SDK calls return promises). Auth actions (`login`, `status`, `logout`) are synchronous since credential storage is file-based. The framework fires actions with `void action(...)` (fire-and-forget), so the entry point registers a global handler inside the `isMainModule` guard:
 
 ```ts
 process.on('unhandledRejection', (err) => {
