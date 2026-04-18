@@ -50,6 +50,7 @@ export function buildProgram(configDir?: string): Program {
   // loadCredentials() defined here — closes over credentialStorage
   const program = new Program();
   program.name('ab').description('Atlassian Bridge — Jira & Confluence from the terminal').version('0.1.0');
+  // --version output: "0.1.0" (version string only, no program name prefix)
   program.option('-v, --verbose', 'Enable verbose output');
   // ... register namespaces, commands, subcommands ...
   return program;
@@ -154,7 +155,7 @@ Show current credential source and values.
 ab auth status
 ```
 
-Loads via `loadCredentials()`. Prints base URL, email, and a masked token (last 4 characters). If no credentials are found, the error includes the remediation hint.
+Loads via `loadCredentials()`. Prints base URL, email, and a masked token (last 4 characters visible, prefixed with `****`). If the token is 4 characters or shorter, display `****` only to avoid revealing the entire value. If no credentials are found, the error includes the remediation hint.
 
 ```
 Base URL:  https://x.atlassian.net
@@ -229,11 +230,11 @@ Create a new page.
 ab confluence pages create <title> [flags]
 ```
 
-| Flag               | Description                                   | Default |
-| ------------------ | --------------------------------------------- | ------- |
-| `--space <id>`     | Space ID or key (**required at action time**) | —       |
-| `--parent-id <id>` | Parent page ID                                | —       |
-| `--body <adf>`     | ADF JSON body string                          | —       |
+| Flag               | Description                                   | Default                                     |
+| ------------------ | --------------------------------------------- | ------------------------------------------- |
+| `--space <id>`     | Space ID or key (**required at action time**) | —                                           |
+| `--parent-id <id>` | Parent page ID                                | —                                           |
+| `--body <adf>`     | ADF JSON body string                          | `'{"version":1,"type":"doc","content":[]}'` |
 
 `--space` is required by the SDK. The action throws `AppError` if absent.
 
