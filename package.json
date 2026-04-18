@@ -14,10 +14,10 @@
     "LICENSE",
     "package.json"
   ],
-  "main": "dist/index.js",
-  "bin": "dist/index.js",
+  "main": "dist/ab-cli.js",
+  "bin": "dist/ab-cli.js",
   "scripts": {
-    "dev": "node --import=tsx src/index.ts",
+    "dev": "node --import=tsx src/ab-cli.ts",
     "build": "tsc -p tsconfig.node.json",
     "lint": "eslint .",
     "format": "prettier --write .",
