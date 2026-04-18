@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { CredentialStorage } from '../../src/auth/credential-storage.js';
 import { AppError } from '../../src/shared/app-error.js';
 
@@ -71,6 +71,15 @@ describe('credential-storage', () => {
       expect(result.baseUrl).toBe('https://test.atlassian.net');
       expect(result.email).toBe('override@example.com');
       expect(result.apiToken).toBe('token123');
+    });
+
+    it('treats empty string env var as unset and falls back to file', () => {
+      fs.writeFileSync(path.join(tmpDir, 'credentials.json'), JSON.stringify(validCredentials()));
+      process.env['ATLASSIAN_BASE_URL'] = '';
+
+      const result = storage.load();
+
+      expect(result.baseUrl).toBe('https://test.atlassian.net');
     });
 
     it('throws AppError naming the missing field when baseUrl is missing', () => {
@@ -157,6 +166,17 @@ describe('credential-storage', () => {
       const result = storage.clear();
 
       expect(result).toBe(false);
+    });
+
+    it('re-throws non-ENOENT errors', () => {
+      const eacces = Object.assign(new Error('permission denied'), { code: 'EACCES' });
+      vi.spyOn(fs, 'unlinkSync').mockImplementation(() => {
+        throw eacces;
+      });
+
+      expect(() => storage.clear()).toThrow(eacces);
+
+      vi.restoreAllMocks();
     });
   });
 });

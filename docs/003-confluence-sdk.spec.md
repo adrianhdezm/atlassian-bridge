@@ -190,6 +190,8 @@ Methods that accept a space identifier (`getPages`, `createPage`, `getSpaceTree`
 4. If `results` is empty → throw `AppError("Space not found: <key>")`.
 5. Cache and return the first result's `id`.
 
+`SpaceLookupSchema` lives in `confluence-models.ts` alongside the other schemas:
+
 ```ts
 export const SpaceLookupSchema = z.object({
   results: z.array(z.object({ id: z.string() }))
@@ -348,7 +350,7 @@ const results = await client.searchPages({ cql: 'type = page AND space = "DEV"' 
 
 ## Error Handling
 
-Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createPage` and `updatePage` throw `ZodError` if the ADF body is invalid — before any HTTP request. `deletePage` uses raw `fetch` and throws `Error` on non-ok (`response.ok === false`) responses. `resolveSpaceId` throws `AppError` when a space key returns no results.
+Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createPage` and `updatePage` throw `ZodError` if the ADF body is invalid — before any HTTP request. `deletePage` uses raw `fetch` and throws `HttpError` on non-ok (`response.ok === false`) responses — note that void methods using raw `fetch` do **not** retry on transient errors (unlike `fetchJsonObject`, which retries via `retryWithBackoff`). `resolveSpaceId` throws `AppError` when a space key returns no results.
 
 ## Testing
 

@@ -22,7 +22,7 @@ export interface RetryOptions {
   maxDelayMs?: number;
 }
 
-class HttpError extends Error {
+export class HttpError extends Error {
   readonly status: number;
 
   constructor(status: number, statusText: string) {

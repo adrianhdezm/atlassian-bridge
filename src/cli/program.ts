@@ -68,7 +68,7 @@ export class Program {
 
     try {
       if (tokens.includes('--version')) {
-        write(formatVersion(this._name, this._version));
+        write(formatVersion(this._version));
         return;
       }
 

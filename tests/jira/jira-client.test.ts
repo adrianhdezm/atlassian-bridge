@@ -170,6 +170,35 @@ describe('jira-client', () => {
       expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/PROJ-42`);
       expect(result.key).toBe('PROJ-42');
     });
+
+    it('fetches an issue by numeric ID', async () => {
+      const issue = makeIssue({ id: '10001' });
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(issue));
+
+      const result = await client.getIssue('10001');
+
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/10001`);
+      expect(result.id).toBe('10001');
+    });
+
+    it('parses response when optional fields are absent', async () => {
+      const issue = makeIssue();
+      const fields = issue.fields as Record<string, unknown>;
+      delete fields['priority'];
+      delete fields['labels'];
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(issue));
+
+      const result = await client.getIssue('PROJ-1');
+
+      expect(result.fields.priority).toBeUndefined();
+      expect(result.fields.labels).toBeUndefined();
+    });
+
+    it('throws on non-ok response', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'not found' }, 404));
+
+      await expect(client.getIssue('PROJ-999')).rejects.toThrow('Request failed with status 404');
+    });
   });
 
   describe('createIssue', () => {
@@ -224,7 +253,7 @@ describe('jira-client', () => {
           summary: 'Bad',
           description: { invalid: true }
         })
-      ).rejects.toThrow();
+      ).rejects.toThrow(z.ZodError);
 
       expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -254,10 +283,22 @@ describe('jira-client', () => {
       expect(fields['labels']).toBeUndefined();
     });
 
+    it('sends all fields when all are provided', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }));
+
+      await client.updateIssue('PROJ-1', { summary: 'New title', description: validAdf, labels: ['backend', 'urgent'] });
+
+      const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string) as Record<string, unknown>;
+      const fields = body['fields'] as Record<string, unknown>;
+      expect(fields['summary']).toBe('New title');
+      expect(fields['description']).toEqual(validAdf);
+      expect(fields['labels']).toEqual(['backend', 'urgent']);
+    });
+
     it('validates ADF description before sending request', async () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-      await expect(client.updateIssue('PROJ-1', { description: { invalid: true } })).rejects.toThrow();
+      await expect(client.updateIssue('PROJ-1', { description: { invalid: true } })).rejects.toThrow(z.ZodError);
 
       expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -304,6 +345,20 @@ describe('jira-client', () => {
       expect(result[0].name).toBe('In Progress');
       expect(result[1].name).toBe('Done');
     });
+
+    it('returns empty array when no transitions exist', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ transitions: [] }));
+
+      const result = await client.getTransitions('PROJ-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('throws on non-ok response', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'not found' }, 404));
+
+      await expect(client.getTransitions('PROJ-999')).rejects.toThrow('Request failed with status 404');
+    });
   });
 
   describe('transitionIssue', () => {
@@ -317,6 +372,12 @@ describe('jira-client', () => {
       expect(call[1]!.method).toBe('POST');
       const body = JSON.parse(call[1]!.body as string) as Record<string, unknown>;
       expect(body['transition']).toEqual({ id: '31' });
+    });
+
+    it('returns void on success', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }));
+
+      await expect(client.transitionIssue('PROJ-1', { transitionId: '31' })).resolves.toBeUndefined();
     });
 
     it('throws on non-ok response', async () => {
@@ -372,6 +433,12 @@ describe('jira-client', () => {
       expect(result.issues).toHaveLength(2);
       expect(result.isLast).toBe(true);
     });
+
+    it('throws on non-ok response', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'bad request' }, 400));
+
+      await expect(client.searchIssues({ jql: 'invalid jql !!!' })).rejects.toThrow('Request failed with status 400');
+    });
   });
 
   describe('getProjects', () => {
@@ -406,6 +473,12 @@ describe('jira-client', () => {
       expect(url).toContain('startAt=10');
       expect(url).toContain('maxResults=25');
     });
+
+    it('throws on non-ok response', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'forbidden' }, 403));
+
+      await expect(client.getProjects()).rejects.toThrow('Request failed with status 403');
+    });
   });
 
   describe('getProject', () => {
@@ -427,6 +500,12 @@ describe('jira-client', () => {
       expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/project/999`);
       expect(result.id).toBe('999');
     });
+
+    it('throws on non-ok response', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'not found' }, 404));
+
+      await expect(client.getProject('NOPE')).rejects.toThrow('Request failed with status 404');
+    });
   });
 
   describe('getChildIssues', () => {
@@ -440,6 +519,7 @@ describe('jira-client', () => {
       const url = fetchSpy.mock.calls[0][0] as string;
       expect(url).toContain('jql=parent%3DPROJ-1');
       expect(url).toContain('maxResults=100');
+      expect(url).toContain('fields=summary');
       expect(result).toHaveLength(1);
     });
 

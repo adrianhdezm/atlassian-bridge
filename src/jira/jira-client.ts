@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fetchAll, fetchJsonObject } from '../http-client/http-client.js';
+import { fetchAll, fetchJsonObject, HttpError } from '../http-client/http-client.js';
 import { AdfSchema } from '../shared/adf-schema.js';
 import {
   IssueSchema,
@@ -134,7 +134,7 @@ export class JiraClient {
       body: JSON.stringify({ fields })
     });
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status} | ${response.statusText}`);
+      throw new HttpError(response.status, response.statusText);
     }
   }
 
@@ -144,7 +144,7 @@ export class JiraClient {
       headers: this.headers
     });
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status} | ${response.statusText}`);
+      throw new HttpError(response.status, response.statusText);
     }
   }
 
@@ -162,7 +162,7 @@ export class JiraClient {
       body: JSON.stringify({ transition: { id: input.transitionId } })
     });
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status} | ${response.statusText}`);
+      throw new HttpError(response.status, response.statusText);
     }
   }
 

@@ -32,7 +32,7 @@ function flagsSection(options: OptionDef[]): string[] {
   return ['', 'FLAGS', ...alignColumns(pairs)];
 }
 
-export function formatVersion(_name: string, version: string): string {
+export function formatVersion(version: string): string {
   return version;
 }
 

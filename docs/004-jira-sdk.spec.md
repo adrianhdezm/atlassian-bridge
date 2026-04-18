@@ -309,7 +309,7 @@ Returns 204. Uses raw `fetch`, asserts `response.ok`.
 
 ### searchIssues
 
-`GET /rest/api/3/search/jql?jql=...&maxResults=50`
+`GET /rest/api/3/search/jql?jql=...&fields=summary,status,...&maxResults=50`
 
 URL-encodes `jql` via `URLSearchParams`. Always sends `fields` — defaults to `DEFAULT_ISSUE_FIELDS` (the 11 fields matching `IssueSchema`), overridable via `options.fields`. Appends `nextPageToken` and `maxResults` when provided. Cursor-based pagination — pass the returned `nextPageToken` to fetch subsequent pages. JQL reference: [Advanced searching using JQL](https://support.atlassian.com/jira-software-cloud/docs/use-advanced-search-with-jira-query-language-jql/)
 
@@ -358,7 +358,7 @@ const results = await client.searchIssues({ jql: 'project = "PROJ" AND status = 
 
 ## Error Handling
 
-Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createIssue` and `updateIssue` throw `ZodError` if the ADF description is invalid — before any HTTP request, only when `description` is provided. Void methods (`updateIssue`, `deleteIssue`, `transitionIssue`) use raw `fetch` and throw `Error` on non-ok responses.
+Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createIssue` and `updateIssue` throw `ZodError` if the ADF description is invalid — before any HTTP request, only when `description` is provided. Void methods (`updateIssue`, `deleteIssue`, `transitionIssue`) use raw `fetch` and throw `HttpError` on non-ok responses — note that void methods using raw `fetch` do **not** retry on transient errors (unlike `fetchJsonObject`, which retries via `retryWithBackoff`).
 
 ## Testing
 

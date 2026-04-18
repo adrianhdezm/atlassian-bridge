@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fetchAll, fetchJsonObject } from '../http-client/http-client.js';
+import { fetchAll, fetchJsonObject, HttpError } from '../http-client/http-client.js';
 import { AdfSchema } from '../shared/adf-schema.js';
 import { AppError } from '../shared/app-error.js';
 import {
@@ -119,8 +119,7 @@ export class ConfluenceClient {
   }
 
   async createPage(input: CreatePageAttrs): Promise<Page> {
-    const adf = JSON.parse(input.body) as unknown;
-    AdfSchema.parse(adf);
+    const normalizedBody = JSON.stringify(AdfSchema.parse(JSON.parse(input.body)));
 
     const spaceId = await this.resolveSpaceId(input.spaceIdOrKey);
 
@@ -130,7 +129,7 @@ export class ConfluenceClient {
       title: input.title,
       body: {
         representation: 'atlas_doc_format',
-        value: input.body
+        value: normalizedBody
       }
     };
     if (input.parentId !== undefined) {
@@ -145,8 +144,7 @@ export class ConfluenceClient {
   }
 
   async updatePage(pageId: string, input: UpdatePageAttrs): Promise<Page> {
-    const adf = JSON.parse(input.body) as unknown;
-    AdfSchema.parse(adf);
+    const normalizedBody = JSON.stringify(AdfSchema.parse(JSON.parse(input.body)));
 
     const current = await this.getPage(pageId);
 
@@ -159,7 +157,7 @@ export class ConfluenceClient {
         title: input.title,
         body: {
           representation: 'atlas_doc_format',
-          value: input.body
+          value: normalizedBody
         },
         version: {
           number: current.version.number + 1,
@@ -175,7 +173,7 @@ export class ConfluenceClient {
       headers: this.headers
     });
     if (!response.ok) {
-      throw new Error(`Request failed with status ${response.status} | ${response.statusText}`);
+      throw new HttpError(response.status, response.statusText);
     }
   }
 

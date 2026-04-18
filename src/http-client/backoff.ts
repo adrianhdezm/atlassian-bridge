@@ -11,14 +11,10 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, options?: RetryW
   const maxDelayMs = options?.maxDelayMs ?? 10_000;
   const shouldRetry = options?.shouldRetry ?? (() => true);
 
-  let lastError: unknown;
-
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error: unknown) {
-      lastError = error;
-
       if (attempt >= maxRetries || !shouldRetry(error)) {
         throw error;
       }
@@ -28,5 +24,5 @@ export async function retryWithBackoff<T>(fn: () => Promise<T>, options?: RetryW
     }
   }
 
-  throw lastError;
+  throw new Error('Retry loop exited unexpectedly');
 }

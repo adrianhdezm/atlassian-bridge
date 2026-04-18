@@ -66,6 +66,16 @@ describe('http-client', () => {
       expect(result).toEqual([]);
     });
 
+    it('propagates fetchPage errors', async () => {
+      await expect(
+        fetchAll({
+          fetchPage: () => Promise.reject(new Error('network failure')),
+          getItems: (p: { items: number[] }) => p.items,
+          getCursor: () => undefined
+        })
+      ).rejects.toThrow('network failure');
+    });
+
     it('passes cursor from previous page to fetchPage', async () => {
       const cursors: (string | undefined)[] = [];
       const first: { items: number[]; next: string | undefined } = { items: [1], next: 'abc' };
@@ -96,6 +106,14 @@ describe('http-client', () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ id: '1', name: 'Test' }));
 
       const result = await fetchJsonObject(TestSchema, 'https://api.example.com/test', { retry: { maxRetries: 0 } });
+
+      expect(result).toEqual({ id: '1', name: 'Test' });
+    });
+
+    it('works with no init argument (uses defaults)', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ id: '1', name: 'Test' }));
+
+      const result = await fetchJsonObject(TestSchema, 'https://api.example.com/test');
 
       expect(result).toEqual({ id: '1', name: 'Test' });
     });
@@ -135,6 +153,18 @@ describe('http-client', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
+    it('throws after exhausting all retries on persistent retryable errors', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'unavailable' }, 503, 'Service Unavailable'));
+
+      await expect(
+        fetchJsonObject(TestSchema, 'https://api.example.com/test', {
+          retry: { maxRetries: 2, initialDelayMs: 1, maxDelayMs: 1 }
+        })
+      ).rejects.toThrow('Request failed with status 503 | Service Unavailable');
+
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+    });
+
     it('does not retry on non-retryable 4xx errors', async () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ error: 'not found' }, 404, 'Not Found'));
 
@@ -145,6 +175,20 @@ describe('http-client', () => {
       ).rejects.toThrow('Request failed with status 404 | Not Found');
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries on 504 Gateway Timeout', async () => {
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(jsonResponse({ error: 'timeout' }, 504, 'Gateway Timeout'))
+        .mockResolvedValue(jsonResponse({ id: '1', name: 'Test' }));
+
+      const result = await fetchJsonObject(TestSchema, 'https://api.example.com/test', {
+        retry: { maxRetries: 2, initialDelayMs: 1, maxDelayMs: 1 }
+      });
+
+      expect(result).toEqual({ id: '1', name: 'Test' });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
     it('retries on 429 Too Many Requests', async () => {
@@ -204,6 +248,22 @@ describe('http-client', () => {
         headers: { Accept: 'application/json', Authorization: 'Bearer token' },
         method: 'POST'
       });
+    });
+
+    it('logs error body on each retry attempt', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(jsonResponse({ message: 'overloaded' }, 503, 'Service Unavailable'))
+        .mockResolvedValueOnce(jsonResponse({ message: 'still overloaded' }, 502, 'Bad Gateway'))
+        .mockResolvedValue(jsonResponse({ id: '1', name: 'Test' }));
+
+      await fetchJsonObject(TestSchema, 'https://api.example.com/test', {
+        retry: { maxRetries: 2, initialDelayMs: 1, maxDelayMs: 1 }
+      });
+
+      expect(consoleSpy).toHaveBeenCalledTimes(2);
+      expect(consoleSpy).toHaveBeenNthCalledWith(1, { message: 'overloaded' });
+      expect(consoleSpy).toHaveBeenNthCalledWith(2, { message: 'still overloaded' });
     });
 
     it('logs error body on non-ok JSON response', async () => {

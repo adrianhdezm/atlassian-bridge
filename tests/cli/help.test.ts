@@ -4,7 +4,7 @@ import { formatVersion, formatRootHelp, formatNamespaceHelp, formatCommandHelp, 
 describe('help', () => {
   describe('formatVersion', () => {
     it('formats version only', () => {
-      const result = formatVersion('ab', '0.1.0');
+      const result = formatVersion('0.1.0');
 
       expect(result).toBe('0.1.0');
     });

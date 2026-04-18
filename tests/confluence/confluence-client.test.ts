@@ -183,6 +183,17 @@ describe('confluence-client', () => {
       expect(pagesUrl).toContain('space-id=200');
     });
 
+    it('passes title, status, and limit params', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [], _links: {} }));
+
+      await client.getPages({ title: 'My Page', status: 'archived', limit: 10 });
+
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).toContain('title=My+Page');
+      expect(url).toContain('status=archived');
+      expect(url).toContain('limit=10');
+    });
+
     it('follows cursor for pagination', async () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [makePage()], _links: {} }));
 
@@ -196,7 +207,7 @@ describe('confluence-client', () => {
     it('validates ADF body before sending request', async () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-      await expect(client.createPage({ spaceIdOrKey: '100', title: 'Test', body: '{"invalid": true}' })).rejects.toThrow();
+      await expect(client.createPage({ spaceIdOrKey: '100', title: 'Test', body: '{"invalid": true}' })).rejects.toThrow(z.ZodError);
 
       expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -216,7 +227,9 @@ describe('confluence-client', () => {
       expect(body.status).toBe('current');
       expect(body.title).toBe('New Page');
       expect(body.parentId).toBe('5');
-      expect(body.body).toEqual({ representation: 'atlas_doc_format', value: validAdf });
+      const envelope = body.body as { representation: string; value: string };
+      expect(envelope.representation).toBe('atlas_doc_format');
+      expect(JSON.parse(envelope.value)).toEqual(JSON.parse(validAdf));
     });
 
     it('wraps ADF body in representation envelope', async () => {
@@ -225,7 +238,9 @@ describe('confluence-client', () => {
       await client.createPage({ spaceIdOrKey: '100', title: 'Test', body: validAdf });
 
       const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string) as Record<string, unknown>;
-      expect(body.body).toEqual({ representation: 'atlas_doc_format', value: validAdf });
+      const envelope = body.body as { representation: string; value: string };
+      expect(envelope.representation).toBe('atlas_doc_format');
+      expect(JSON.parse(envelope.value)).toEqual(JSON.parse(validAdf));
     });
   });
 
@@ -259,7 +274,7 @@ describe('confluence-client', () => {
     it('validates ADF body before any HTTP request', async () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-      await expect(client.updatePage('42', { title: 'Bad', body: '{"invalid": true}' })).rejects.toThrow();
+      await expect(client.updatePage('42', { title: 'Bad', body: '{"invalid": true}' })).rejects.toThrow(z.ZodError);
 
       expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -328,6 +343,15 @@ describe('confluence-client', () => {
       const url = fetchSpy.mock.calls[0][0] as string;
       expect(url).toContain('limit=10');
     });
+
+    it('follows cursor for pagination', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(rawSearchResponse([])));
+
+      await client.searchPages({ cql: 'type = page', cursor: '/wiki/rest/api/content/search?cursor=abc' });
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/wiki/rest/api/content/search?cursor=abc`);
+    });
   });
 
   describe('getDescendants', () => {
@@ -394,6 +418,22 @@ describe('confluence-client', () => {
       expect(result[3].id).toBe('c2');
     });
 
+    it('auto-paginates root pages across multiple pages', async () => {
+      const root1 = makePage({ id: 'r1', title: 'Root 1', parentId: null });
+      const root2 = makePage({ id: 'r2', title: 'Root 2', parentId: null });
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(jsonResponse({ results: [root1], _links: { next: '/wiki/api/v2/spaces/100/pages?cursor=page2' } }))
+        .mockResolvedValueOnce(jsonResponse({ results: [root2], _links: {} }))
+        .mockResolvedValueOnce(jsonResponse({ results: [], _links: {} }))
+        .mockResolvedValue(jsonResponse({ results: [], _links: {} }));
+
+      const result = await client.getSpaceTree('100');
+
+      expect(result).toHaveLength(2);
+      expect(result[0].id).toBe('r1');
+      expect(result[1].id).toBe('r2');
+    });
+
     it('returns only roots when depth is 0', async () => {
       const root = makePage({ id: 'r1' });
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [root], _links: {} }));
@@ -415,6 +455,8 @@ describe('confluence-client', () => {
       expect(fetchSpy.mock.calls[0][0]).toBe(`${V2}/spaces?keys=DEV`);
       const rootUrl = fetchSpy.mock.calls[1][0] as string;
       expect(rootUrl).toContain(`${V2}/spaces/200/pages`);
+      expect(rootUrl).toContain('depth=root');
+      expect(rootUrl).toContain('status=current');
     });
   });
 
