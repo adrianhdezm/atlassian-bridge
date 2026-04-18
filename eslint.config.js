@@ -29,8 +29,10 @@ export default defineConfig([
       }
     }
   },
+  pluginPrettierRecommended,
   {
     rules: {
+      curly: 'error',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -45,6 +47,5 @@ export default defineConfig([
         }
       ]
     }
-  },
-  pluginPrettierRecommended
+  }
 ]);
