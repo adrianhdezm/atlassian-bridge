@@ -79,7 +79,7 @@ export class Subcommand   // fluent builder, holds args + options + action
 export class Command       // holds name, description, Map<string, Subcommand>
 ```
 
-`Subcommand` exposes `get meta` (getter, not method) returning `{ name, description, args, options }`. `Command` exposes `get meta` returning `{ name, description, subcommands: Map }`.
+`Subcommand` exposes `get meta` (getter, not method) returning `{ name, description, arguments, options }`, `execute(args, opts)` to run the registered action, and `readonly name`. `Command` exposes `get meta` returning `{ name, description, subcommands: Map }` and `getSubcommand(name): Subcommand | undefined`.
 
 ### namespace.ts
 
@@ -87,7 +87,7 @@ export class Command       // holds name, description, Map<string, Subcommand>
 export class Namespace     // holds name, description, Map<string, Command>
 ```
 
-`get meta` returns `{ name, description, commands: Map }`.
+`get meta` returns `{ name, description, commands: Map }`. `getCommand(name): Command | undefined` retrieves a command by name.
 
 ### program.ts
 
@@ -201,7 +201,7 @@ argv
  │
  ├─ token[0] matches command? ──→ resolve command (step 4)
  ├─ token[0] matches namespace?
- │    ├─ --help or no next token → help.ts: namespace help, return
+ │    ├─ token[1] is --help or absent → help.ts: namespace help, return
  │    └─ token[1] matches command? → resolve command (step 4)
  │         └─ unknown → error, process.exit(1)
  │
