@@ -1,7 +1,7 @@
 {
   "name": "@ai-foundry/atlassian-bridge",
   "version": "0.0.1",
-  "description": "A CLI for managing Jira and Confluence from the command line.",
+  "description": "Just another CLI for managing Jira and Confluence from the command line.",
   "type": "module",
   "author": "Adrian Hernandez-Mendez",
   "license": "MIT",
@@ -21,7 +21,8 @@
     "build": "tsc -p tsconfig.node.json",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "release": "./scripts/release.sh"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
