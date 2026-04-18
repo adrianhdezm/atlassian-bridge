@@ -29,7 +29,7 @@ The `Credentials` type is compatible with both `ConfluenceClientConfig` and `Jir
 
 For each credential field independently, the storage takes the first value found:
 
-1. **Environment variable** — highest priority, overrides file on a per-field basis
+1. **Environment variable** — highest priority, overrides file on a per-field basis (empty strings are treated as unset)
 2. **File storage** — `~/.ab-cli/credentials.json`
 
 If a field is missing from both sources, `load()` throws `AppError` naming the missing field.
