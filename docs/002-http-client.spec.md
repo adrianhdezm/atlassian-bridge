@@ -17,7 +17,7 @@ src/http-client/
 ```ts
 import type { z } from 'zod';
 
-interface RetryOptions {
+export interface RetryOptions {
   maxRetries?: number; // default: 3
   initialDelayMs?: number; // default: 500
   maxDelayMs?: number; // default: 10000
@@ -30,12 +30,12 @@ export async function fetchJsonObject<TData>(
 ): Promise<TData>;
 ```
 
-Accepts a Zod schema, standard `fetch` parameters (`input`, `init?`), and an optional `retry` config merged into `init`. The `retry` property is destructured out before `init` is forwarded to `fetch`. The function prepends `Accept: application/json` to the request headers (merged with any caller-provided headers). Returns the parsed and validated response body typed as `TData`.
+Accepts a Zod schema, standard `fetch` parameters (`input`, `init?`), and an optional `retry` config merged into `init`. Both `retry` and `headers` are destructured from `init` before forwarding to `fetch`. A new headers object is built as `{ Accept: 'application/json', ...headers }` — caller-provided headers override the default `Accept`. Returns the parsed and validated response body typed as `TData`.
 
 ### retryWithBackoff
 
 ```ts
-interface RetryWithBackoffOptions {
+export interface RetryWithBackoffOptions {
   maxRetries?: number; // default: 3
   initialDelayMs?: number; // default: 500
   maxDelayMs?: number; // default: 10000
@@ -92,8 +92,9 @@ fetch(input, init)  // retry stripped from init before forwarding
  │    │    └─ invalid → throw ZodError (not retried)
  │    └─ done
 
-retry loop (attempt = 0):
-  attempt >= maxRetries → throw last error
+retry loop (attempt = 0 … maxRetries):
+  call fn()
+  on error: attempt >= maxRetries or !shouldRetry → throw error
   delay = min(initialDelayMs * 2^attempt, maxDelayMs) → wait → attempt++
 ```
 
