@@ -30,7 +30,7 @@ export async function fetchJsonObject<TData>(
 ): Promise<TData>;
 ```
 
-Accepts a Zod schema, standard `fetch` parameters (`input`, `init?`), and an optional `retry` config merged into `init`. The `retry` property is destructured out before `init` is forwarded to `fetch`. Returns the parsed and validated response body typed as `TData`.
+Accepts a Zod schema, standard `fetch` parameters (`input`, `init?`), and an optional `retry` config merged into `init`. The `retry` property is destructured out before `init` is forwarded to `fetch`. The function prepends `Accept: application/json` to the request headers (merged with any caller-provided headers). Returns the parsed and validated response body typed as `TData`.
 
 ### retryWithBackoff
 
@@ -124,7 +124,7 @@ Pass `{ maxRetries: 0 }` to disable retries entirely.
 
 ### Fetch Passthrough
 
-All `fetch` parameters are forwarded unmodified except `retry`, which is destructured out of `init` before the call. The wrapper adds no headers, no timeouts — retry is the only behavior layered on top.
+All `fetch` parameters are forwarded unmodified except `retry`, which is destructured out of `init` before the call. The only header added by the wrapper is `Accept: application/json` — no timeouts or other behaviors are layered on beyond retry.
 
 ### Generic Typing
 
