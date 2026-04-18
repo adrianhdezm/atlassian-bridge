@@ -42,7 +42,7 @@ The `as JSONSchema.JSONSchema` cast is required because `resolveJsonModule` wide
 
 ### Loose Zod Schemas
 
-All Zod schemas for Atlassian API responses (in `src/confluence/` and `src/jira/`) use `z.looseObject()` instead of `z.object()`. This tolerates extra fields the API returns without causing validation errors — only the fields the CLI consumes are declared.
+Zod schemas for Atlassian **resource/entity** objects (e.g. `PageSchema`, `IssueSchema`, `SpaceSchema`) use `z.looseObject()` instead of `z.object()`. This tolerates extra fields the API returns without causing validation errors — only the fields the CLI consumes are declared. **Envelope/pagination** wrappers (e.g. `PaginatedPagesSchema`, `SearchResultSchema`, `IssueSearchResultSchema`) use strict `z.object()` since their structure is fixed.
 
 ### Basic Auth
 
