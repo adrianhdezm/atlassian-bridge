@@ -303,7 +303,7 @@ Fetches a single project by key (e.g. `"PROJ"`) or numeric ID.
 
 `GET /rest/api/3/project/search?startAt=0&maxResults=50&query=...`
 
-Offset-based pagination. Appends `query` when provided for name-based filtering.
+Offset-based pagination. Appends `query` when provided for name-based filtering. Query string is appended only when at least one parameter is set — avoid a bare trailing `?`.
 
 ### getChildIssues
 
@@ -342,4 +342,4 @@ Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additi
 
 ## Testing
 
-Tests in `tests/jira/jira-client.test.ts`. Covers: constructor (auth headers, URL building), getIssue, createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProjects (query filtering), getChildIssues (auto-pagination via nextPageToken).
+Tests in `tests/jira/jira-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: constructor (auth headers, URL building), getIssue, createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProjects (query filtering), getChildIssues (auto-pagination via nextPageToken).
