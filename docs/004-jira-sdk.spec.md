@@ -441,6 +441,7 @@ Two-pass cleaning via `stripPaths(stripKeys(issue, STRIPPED_KEYS), STRIPPED_PATH
    - `fields.status`: `statusCategory`, `description`
    - `fields.attachment.author`: `accountType`, `accountId`
    - `fields.issuelinks.outwardIssue.fields`: `status.description`, `status.statusCategory`, `priority`, `issuetype.description`, `issuetype.avatarId`, `issuetype.entityId`, `issuetype.subtask`, `issuetype.hierarchyLevel`
+   - `fields.subtasks.fields`: `status.description`, `status.statusCategory`, `issuetype.description`, `issuetype.avatarId`, `issuetype.entityId`, `issuetype.hierarchyLevel`, `priority`
    - `transitions`: `to`, `hasScreen`, `isGlobal`, `isInitial`, `isConditional`, `isLooped`
 
 Preserves `null` values and primitives. Returns `Record<string, unknown>`.
