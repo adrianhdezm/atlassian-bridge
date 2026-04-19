@@ -19,9 +19,10 @@ function makeIssue(overrides: Record<string, unknown> = {}) {
     self: `${API}/issue/10001`,
     fields: {
       summary: 'Test issue',
-      status: { id: '1', name: 'To Do' },
+      status: { id: '1', name: 'To Do', statusCategory: { id: 2, key: 'new', name: 'To Do', colorName: 'blue-gray' } },
       assignee: { accountId: 'user1', displayName: 'User One' },
       reporter: { accountId: 'user2', displayName: 'User Two' },
+      creator: { accountId: 'user2', displayName: 'User Two' },
       priority: { id: '3', name: 'Medium' },
       issuetype: { id: '10', name: 'Task' },
       project: { id: '100', key: 'PROJ', name: 'Project' },
@@ -155,7 +156,7 @@ describe('jira-client', () => {
 
       await client.getIssue('PROJ-1');
 
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/PROJ-1`);
+      expect((fetchSpy.mock.calls[0][0] as string).startsWith(`${API}/issue/PROJ-1?`)).toBe(true);
     });
   });
 
@@ -167,7 +168,8 @@ describe('jira-client', () => {
       const result = await client.getIssue('PROJ-42');
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/PROJ-42`);
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).toContain(`${API}/issue/PROJ-42?`);
       expect(result.key).toBe('PROJ-42');
     });
 
@@ -177,8 +179,47 @@ describe('jira-client', () => {
 
       const result = await client.getIssue('10001');
 
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/10001`);
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).toContain(`${API}/issue/10001?`);
       expect(result.id).toBe('10001');
+    });
+
+    it('sends fields query parameter', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(makeIssue()));
+
+      await client.getIssue('PROJ-1');
+
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).toContain('fields=summary');
+      expect(url).toContain('statusCategory');
+      expect(url).toContain('creator');
+      expect(url).toContain('issuelinks');
+      expect(url).toContain('attachment');
+      expect(url).toContain('subtasks');
+    });
+
+    it('sends expand=transitions query parameter', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(makeIssue()));
+
+      await client.getIssue('PROJ-1');
+
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).toContain('expand=transitions');
+    });
+
+    it('parses inline transitions from expanded response', async () => {
+      const transitions = [
+        { id: '21', name: 'In Progress', to: { id: '2', name: 'In Progress' } },
+        { id: '31', name: 'Done', to: { id: '3', name: 'Done' } }
+      ];
+      const issue = makeIssue({ transitions });
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(issue));
+
+      const result = await client.getIssue('PROJ-1');
+
+      expect(result.transitions).toHaveLength(2);
+      expect(result.transitions![0].name).toBe('In Progress');
+      expect(result.transitions![1].name).toBe('Done');
     });
 
     it('parses response when optional fields are absent', async () => {

@@ -15,20 +15,6 @@ const TransitionsResponseSchema = z.object({
   transitions: z.array(TransitionSchema)
 });
 
-const DEFAULT_ISSUE_FIELDS = [
-  'summary',
-  'status',
-  'assignee',
-  'reporter',
-  'priority',
-  'issuetype',
-  'project',
-  'description',
-  'created',
-  'updated',
-  'labels'
-];
-
 export interface JiraClientConfig {
   baseUrl: string;
   email: string;
@@ -68,6 +54,28 @@ export interface GetProjectsOptions {
 }
 
 export class JiraClient {
+  private static readonly ISSUE_FIELDS = [
+    'summary',
+    'status',
+    'statusCategory',
+    'assignee',
+    'reporter',
+    'priority',
+    'issuetype',
+    'project',
+    'description',
+    'creator',
+    'created',
+    'updated',
+    'statuscategorychangedate',
+    'lastViewed',
+    'duedate',
+    'labels',
+    'issuelinks',
+    'attachment',
+    'subtasks'
+  ] as const;
+
   private readonly apiUrl: string;
   private readonly headers: Record<string, string>;
 
@@ -80,7 +88,11 @@ export class JiraClient {
   }
 
   async getIssue(issueIdOrKey: string): Promise<Issue> {
-    return fetchJsonObject(IssueSchema, `${this.apiUrl}/issue/${issueIdOrKey}`, {
+    const params = new URLSearchParams({
+      fields: JiraClient.ISSUE_FIELDS.join(','),
+      expand: 'transitions'
+    });
+    return fetchJsonObject(IssueSchema, `${this.apiUrl}/issue/${issueIdOrKey}?${params.toString()}`, {
       headers: this.headers
     });
   }
@@ -165,7 +177,7 @@ export class JiraClient {
 
   async searchIssues(options: SearchIssuesOptions): Promise<IssueSearchResult> {
     const params = new URLSearchParams({ jql: options.jql });
-    params.set('fields', (options.fields ?? DEFAULT_ISSUE_FIELDS).join(','));
+    params.set('fields', (options.fields ?? JiraClient.ISSUE_FIELDS).join(','));
     if (options.nextPageToken !== undefined) {
       params.set('nextPageToken', options.nextPageToken);
     }
@@ -208,7 +220,7 @@ export class JiraClient {
         const params = new URLSearchParams({
           jql: `parent=${issueIdOrKey}`,
           maxResults: '100',
-          fields: DEFAULT_ISSUE_FIELDS.join(',')
+          fields: JiraClient.ISSUE_FIELDS.join(',')
         });
         if (cursor !== undefined) {
           params.set('nextPageToken', cursor);

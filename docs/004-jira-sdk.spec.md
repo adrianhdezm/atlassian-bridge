@@ -74,26 +74,77 @@ Concrete paginated schemas are built via `.extend()` — see Issue Search Result
 
 ### Issue
 
-Only the fields the CLI actually consumes. Uses `z.looseObject()` (see `000-shared.spec.md`). All fields live under a nested `fields` key (unlike Confluence where fields are top-level).
+Only the fields the CLI actually consumes. Uses `z.looseObject()` (see `000-shared.spec.md`). All fields live under a nested `fields` key (unlike Confluence where fields are top-level). When fetched via `getIssue` with `expand=transitions`, the `transitions` array appears at the top level of the issue object (outside `fields`).
 
 ```ts
+const StatusCategorySchema = z.looseObject({
+  id: z.number(),
+  key: z.string(),
+  name: z.string(),
+  colorName: z.string()
+});
+
+const IssueLinkSchema = z.looseObject({
+  id: z.string(),
+  type: z.looseObject({
+    id: z.string(),
+    name: z.string(),
+    inward: z.string(),
+    outward: z.string()
+  }),
+  inwardIssue: z.looseObject({ id: z.string(), key: z.string(), self: z.string() }).optional(),
+  outwardIssue: z.looseObject({ id: z.string(), key: z.string(), self: z.string() }).optional()
+});
+
+const AttachmentSchema = z.looseObject({
+  id: z.string(),
+  filename: z.string(),
+  mimeType: z.string(),
+  size: z.number(),
+  created: z.string(),
+  self: z.string(),
+  content: z.string()
+});
+
 const IssueSchema = z.looseObject({
   id: z.string(),
   key: z.string(),
   self: z.string(),
   fields: z.looseObject({
     summary: z.string(),
-    status: z.looseObject({ id: z.string(), name: z.string() }),
+    status: z.looseObject({ id: z.string(), name: z.string(), statusCategory: StatusCategorySchema }),
+    statusCategory: StatusCategorySchema.optional(),
     assignee: z.looseObject({ accountId: z.string(), displayName: z.string() }).nullable(),
     reporter: z.looseObject({ accountId: z.string(), displayName: z.string() }),
+    creator: z.looseObject({ accountId: z.string(), displayName: z.string() }),
     priority: z.looseObject({ id: z.string(), name: z.string() }).optional(),
     issuetype: z.looseObject({ id: z.string(), name: z.string() }),
     project: z.looseObject({ id: z.string(), key: z.string(), name: z.string() }),
     description: z.unknown().nullable().optional(),
     created: z.string(),
     updated: z.string(),
-    labels: z.array(z.string()).optional()
-  })
+    statuscategorychangedate: z.string().nullable().optional(),
+    lastViewed: z.string().nullable().optional(),
+    duedate: z.string().nullable().optional(),
+    labels: z.array(z.string()).optional(),
+    issuelinks: z.array(IssueLinkSchema).optional(),
+    attachment: z.array(AttachmentSchema).optional(),
+    subtasks: z
+      .array(
+        z.looseObject({
+          id: z.string(),
+          key: z.string(),
+          self: z.string(),
+          fields: z.looseObject({
+            summary: z.string(),
+            status: z.looseObject({ id: z.string(), name: z.string() }),
+            issuetype: z.looseObject({ id: z.string(), name: z.string() })
+          })
+        })
+      )
+      .optional()
+  }),
+  transitions: z.array(z.lazy(() => TransitionSchema)).optional()
 });
 
 type Issue = z.infer<typeof IssueSchema>;
@@ -170,7 +221,16 @@ The constructor eagerly builds auth headers (see Basic Auth in `000-shared.spec.
 
 ```ts
 private readonly apiUrl: string;  // `${baseUrl}/rest/api/3`
+
+private static readonly ISSUE_FIELDS = [
+  'summary', 'status', 'statusCategory', 'assignee', 'reporter',
+  'priority', 'issuetype', 'project', 'description', 'creator',
+  'created', 'updated', 'statuscategorychangedate', 'lastViewed',
+  'duedate', 'labels', 'issuelinks', 'attachment', 'subtasks'
+] as const;
 ```
+
+`ISSUE_FIELDS` is the single source of truth for which fields to request. Used by `getIssue` (joined into the `fields` query parameter) and as the default for `searchIssues`.
 
 Single URL prefix — all Jira v3 endpoints share `/rest/api/3` (unlike Confluence which splits across v1 and v2).
 
@@ -214,7 +274,7 @@ interface SearchIssuesOptions {
   jql: string;
   nextPageToken?: string; // omit for first page
   maxResults?: number; // API default: 50, API max: 5000 (not enforced client-side)
-  fields?: string[]; // default: DEFAULT_ISSUE_FIELDS (summary, status, assignee, reporter, priority, issuetype, project, description, created, updated, labels)
+  fields?: string[]; // default: JiraClient.ISSUE_FIELDS
 }
 
 interface GetProjectsOptions {
@@ -232,7 +292,9 @@ All methods use base path `${this.apiUrl}` (which is `${baseUrl}/rest/api/3`).
 
 ### getIssue
 
-`GET /rest/api/3/issue/{issueIdOrKey}`
+`GET /rest/api/3/issue/{issueIdOrKey}?fields=summary,status,statusCategory,assignee,reporter,priority,issuetype,project,description,creator,created,updated,statuscategorychangedate,lastViewed,duedate,labels,issuelinks,attachment,subtasks&expand=transitions`
+
+Requests `ISSUE_FIELDS` joined as a comma-separated string and expands transitions inline so callers get available transitions without a separate `getTransitions` call.
 
 ### createIssue
 
@@ -311,7 +373,7 @@ Returns 204. Uses raw `fetch`, asserts `response.ok`.
 
 `GET /rest/api/3/search/jql?jql=...&fields=summary,status,...&maxResults=50`
 
-URL-encodes `jql` via `URLSearchParams`. Always sends `fields` — defaults to `DEFAULT_ISSUE_FIELDS` (the 11 fields matching `IssueSchema`), overridable via `options.fields`. Appends `nextPageToken` and `maxResults` when provided. Cursor-based pagination — pass the returned `nextPageToken` to fetch subsequent pages. JQL reference: [Advanced searching using JQL](https://support.atlassian.com/jira-software-cloud/docs/use-advanced-search-with-jira-query-language-jql/)
+URL-encodes `jql` via `URLSearchParams`. Always sends `fields` — defaults to `ISSUE_FIELDS`, overridable via `options.fields`. Appends `nextPageToken` and `maxResults` when provided. Cursor-based pagination — pass the returned `nextPageToken` to fetch subsequent pages. JQL reference: [Advanced searching using JQL](https://support.atlassian.com/jira-software-cloud/docs/use-advanced-search-with-jira-query-language-jql/)
 
 ### getProject
 
@@ -362,4 +424,4 @@ Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additi
 
 ## Testing
 
-Tests in `tests/jira/jira-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue, createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).
+Tests in `tests/jira/jira-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).
