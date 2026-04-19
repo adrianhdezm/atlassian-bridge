@@ -1,6 +1,6 @@
 # Atlassian Bridge CLI
 
-Entry point wiring the CLI framework to the Jira and Confluence SDKs. Single file at `src/ab-cli.ts`.
+CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. Split across two files: `src/ab-cli.ts` (program factory) and `src/main.ts` (entry point).
 
 ## Command Overview
 
@@ -35,7 +35,8 @@ Global option: `-v, --verbose` (available on all commands).
 
 ```
 src/
-└── ab-cli.ts    CLI entry — program, namespaces, commands, actions (deps: node:fs, node:path, node:url, cli/program, shared/app-error, auth/credential-storage, jira/jira-client, confluence/confluence-client)
+├── main.ts      Entry point — bootstraps the program and registers the global error handler (deps: ab-cli)
+└── ab-cli.ts    Program factory — namespaces, commands, actions (deps: node:fs, node:path, node:url, cli/program, shared/app-error, auth/credential-storage, jira/jira-client, confluence/confluence-client)
 ```
 
 ## Program
@@ -67,7 +68,25 @@ The version is read from `package.json` at module load time using `node:fs`. The
 
 The optional `configDir` is passed through to `CredentialStorage`. When omitted (production), defaults to `~/.ab-cli`. Tests pass a temp directory for isolation.
 
-When run as the entry point, an `isMainModule` guard calls `buildProgram().parse(process.argv)` and registers the global error handler. This guard prevents `parse()` and the rejection handler from running during imports (e.g. in tests).
+## Entry Point
+
+`src/main.ts` is the CLI entry point (referenced by `package.json` `bin` and `dev` script). It is intentionally thin — its only responsibilities are registering the global error handler and calling `buildProgram().parse(process.argv)`:
+
+```ts
+#!/usr/bin/env node
+
+import { buildProgram } from './ab-cli.js';
+
+process.on('unhandledRejection', (err) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`error: ${message}`);
+  process.exit(1);
+});
+
+buildProgram().parse(process.argv);
+```
+
+This separation keeps `ab-cli.ts` side-effect-free so tests can import `buildProgram` without triggering `parse()` or the rejection handler.
 
 ## Authentication
 
@@ -110,17 +129,7 @@ Actions print results to stdout via `console.log`:
 
 ## Async Error Handling
 
-Most actions are async (SDK calls return promises). Auth actions (`login`, `status`, `logout`) are synchronous since credential storage is file-based. The framework fires actions with `void action(...)` (fire-and-forget), so the entry point registers a global handler inside the `isMainModule` guard:
-
-```ts
-process.on('unhandledRejection', (err) => {
-  const message = err instanceof Error ? err.message : String(err);
-  console.error(`error: ${message}`);
-  process.exit(1);
-});
-```
-
-This only runs when `ab-cli.ts` is the entry point — not when imported by tests. It catches HTTP errors, Zod validation errors, and missing env var errors uniformly.
+Most actions are async (SDK calls return promises). Auth actions (`login`, `status`, `logout`) are synchronous since credential storage is file-based. The framework fires actions with `void action(...)` (fire-and-forget), so `main.ts` registers a global `unhandledRejection` handler before calling `parse()`. This handler catches HTTP errors, Zod validation errors, and missing env var errors uniformly. Because it lives in `main.ts`, it never runs when tests import `buildProgram` from `ab-cli.ts`.
 
 ## Namespaces
 

@@ -414,13 +414,3 @@ export function buildProgram(configDir?: string): Program {
 
   return program;
 }
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  process.on('unhandledRejection', (err) => {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`error: ${message}`);
-    process.exit(1);
-  });
-
-  buildProgram().parse(process.argv);
-}

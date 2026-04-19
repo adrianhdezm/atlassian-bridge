@@ -29,10 +29,10 @@
     "url": "https://github.com/adrianhdezm/atlassian-bridge/issues"
   },
   "bin": {
-    "ab": "dist/ab-cli.js"
+    "ab": "dist/main.js"
   },
   "scripts": {
-    "dev": "node --import=tsx src/ab-cli.ts",
+    "dev": "node --import=tsx src/main.ts",
     "build": "tsc -p tsconfig.node.json",
     "lint": "eslint .",
     "format": "prettier --write .",
