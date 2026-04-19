@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatPage } from '../../src/confluence/confluence-format.js';
-import type { Page } from '../../src/confluence/confluence-models.js';
+import { formatPage, formatSpace } from '../../src/confluence/confluence-format.js';
+import type { Page, Space } from '../../src/confluence/confluence-models.js';
 
 describe('confluence-format', () => {
   describe('formatPage', () => {
@@ -49,6 +49,37 @@ describe('confluence-format', () => {
     it('preserves null parentId', () => {
       const result = formatPage(basePage);
       expect(result['parentId']).toBeNull();
+    });
+  });
+
+  describe('formatSpace', () => {
+    const baseSpace: Space = {
+      id: '100',
+      key: 'TEST',
+      name: 'Test Space',
+      type: 'global',
+      status: 'current'
+    };
+
+    it('strips _links from space', () => {
+      const space = { ...baseSpace, _links: { webui: '/spaces/TEST' } } as Space;
+      const result = formatSpace(space);
+      expect(result).not.toHaveProperty('_links');
+    });
+
+    it('preserves id, key, name, type, and status', () => {
+      const result = formatSpace(baseSpace);
+      expect(result['id']).toBe('100');
+      expect(result['key']).toBe('TEST');
+      expect(result['name']).toBe('Test Space');
+      expect(result['type']).toBe('global');
+      expect(result['status']).toBe('current');
+    });
+
+    it('preserves extra fields from loose schema', () => {
+      const space = { ...baseSpace, description: { plain: { value: 'A test space' } } } as Space;
+      const result = formatSpace(space);
+      expect(result['description']).toEqual({ plain: { value: 'A test space' } });
     });
   });
 });

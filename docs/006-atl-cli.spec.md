@@ -134,6 +134,7 @@ Before serializing to JSON, data operations in the Jira and Confluence namespace
 - **Jira issues** — `formatIssue` (from `jira/jira-format.ts`) applied to: `get`, `update`, `search` (maps over `issues` array), `children` (maps over result array). Not applied to `create` (returns `CreatedIssue`, not `Issue`) or `transitions`.
 - **Jira projects** — `formatProject` (from `jira/jira-format.ts`) applied to: `get`, `list` (maps over `values` array, preserving the pagination envelope).
 - **Confluence pages** — `formatPage` (from `confluence/confluence-format.ts`) applied to: `get`, `create`, `update`, `list` (maps over `results` array, preserving the pagination envelope's `_links.next` cursor).
+- **Confluence spaces** — `formatSpace` (from `confluence/confluence-format.ts`) applied to: `get`. Not applied to `tree` (returns pages, not spaces).
 
 See `004-jira-sdk.spec.md` and `003-confluence-sdk.spec.md` for the full list of stripped keys and paths.
 

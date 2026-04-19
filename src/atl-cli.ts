@@ -9,7 +9,7 @@ import { CredentialStorage } from './auth/credential-storage.js';
 import { JiraClient } from './jira/jira-client.js';
 import { formatIssue, formatProject } from './jira/jira-format.js';
 import { ConfluenceClient } from './confluence/confluence-client.js';
-import { formatPage } from './confluence/confluence-format.js';
+import { formatPage, formatSpace } from './confluence/confluence-format.js';
 import type { Credentials } from './auth/credential-storage.js';
 
 const packageJsonPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
@@ -227,7 +227,7 @@ export function buildProgram(configDir?: string): Program {
       const creds = loadCredentials();
       const client = new ConfluenceClient(creds);
       const result = await client.getSpace(args['spaceIdOrKey'] as string);
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(formatSpace(result), null, 2));
     });
 
   spaces

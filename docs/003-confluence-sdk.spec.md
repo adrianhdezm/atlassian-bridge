@@ -351,7 +351,7 @@ const results = await client.searchPages({ cql: 'type = page AND space = "DEV"' 
 
 ## Output Formatting
 
-`formatPage` strips noisy API keys (`_links`) from a `Page` before CLI output. Lives in `src/confluence/confluence-format.ts` — separate from `ConfluenceClient` to keep presentation logic out of the data-fetching layer. Uses the shared `stripKeys` utility from `src/shared/format-utils.ts`.
+`formatPage` strips noisy API keys (`_links`) from a `Page` before CLI output. Lives in `src/confluence/confluence-format.ts` — separate from `ConfluenceClient` to keep presentation logic out of the data-fetching layer. Uses the shared `stripKeys` and `stripPaths` utilities from `src/shared/format-utils.ts`.
 
 ```ts
 import { formatPage } from './confluence/confluence-format.js';
@@ -360,9 +360,11 @@ const page = await client.getPage('12345');
 console.log(JSON.stringify(formatPage(page), null, 2));
 ```
 
-Recursively walks the object tree and removes keys in `STRIPPED_KEYS` (`_links`) at any depth. Returns `Record<string, unknown>`.
+Two-pass cleaning via `stripPaths(stripKeys(page, STRIPPED_KEYS), STRIPPED_PAGE_PATHS)`. Recursively removes keys in `STRIPPED_KEYS` (`_links`) at any depth, then applies `STRIPPED_PAGE_PATHS` (empty for now). Returns `Record<string, unknown>`.
 
-Applied in `atl-cli.ts` at the command layer — after fetching, before `JSON.stringify`. Used by: `getPage`, `createPage`, `updatePage`, and `getPages` (maps over `results` array). Pagination envelope `_links` (containing the `next` cursor) is preserved in `getPages` so CLI users can still paginate. Not applied to `searchPages`, `getDescendants`, `getSpaceTree`, or space commands.
+`formatSpace` applies the same `STRIPPED_KEYS` (`_links`) with an empty `STRIPPED_SPACE_PATHS` array (no path stripping needed yet). Uses both `stripKeys` and `stripPaths` from `src/shared/format-utils.ts`. Returns `Record<string, unknown>`.
+
+Applied in `atl-cli.ts` at the command layer — after fetching, before `JSON.stringify`. `formatPage` is used by: `getPage`, `createPage`, `updatePage`, and `getPages` (maps over `results` array). Pagination envelope `_links` (containing the `next` cursor) is preserved in `getPages` so CLI users can still paginate. `formatSpace` is used by: `getSpace`. Not applied to `searchPages`, `getDescendants`, or `getSpaceTree` (returns pages, not spaces).
 
 ## Error Handling
 

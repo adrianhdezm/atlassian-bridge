@@ -362,12 +362,13 @@ describe('atl-cli', () => {
 
   describe('confluence spaces get', () => {
     it('fetches space by key', async () => {
-      mockConfluence.getSpace.mockResolvedValue({ id: '1', key: 'DEV' });
+      mockConfluence.getSpace.mockResolvedValue({ id: '1', key: 'DEV', _links: { webui: '/spaces/DEV' } });
 
       const { logs } = await run(['confluence', 'spaces', 'get', 'DEV']);
 
       expect(mockConfluence.getSpace).toHaveBeenCalledWith('DEV');
       expect(logs[0]).toContain('"key": "DEV"');
+      expect(logs[0]).not.toContain('_links');
     });
   });
 
