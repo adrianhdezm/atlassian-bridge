@@ -8,7 +8,7 @@ Thin client for Confluence Cloud REST API v2 page operations. Lives in `src/conf
 src/confluence/
 ├── confluence-models.ts    Zod schemas + confluencePaginatedSchema factory for API responses (deps: zod)
 ├── confluence-client.ts   ConfluenceClient class — auth, pages, search, space key resolution (deps: confluence-models, shared/adf-schema, shared/app-error, http-client/fetchJsonObject, http-client/fetchAll)
-└── confluence-format.ts   Output formatting — strips noise keys before CLI display (deps: confluence-models, shared/strip-keys)
+└── confluence-format.ts   Output formatting — strips noise keys before CLI display (deps: confluence-models, shared/format-utils)
 ```
 
 ## ConfluenceClient
@@ -351,7 +351,7 @@ const results = await client.searchPages({ cql: 'type = page AND space = "DEV"' 
 
 ## Output Formatting
 
-`formatPage` strips noisy API keys (`_links`) from a `Page` before CLI output. Lives in `src/confluence/confluence-format.ts` — separate from `ConfluenceClient` to keep presentation logic out of the data-fetching layer. Uses the shared `stripKeys` utility from `src/shared/strip-keys.ts`.
+`formatPage` strips noisy API keys (`_links`) from a `Page` before CLI output. Lives in `src/confluence/confluence-format.ts` — separate from `ConfluenceClient` to keep presentation logic out of the data-fetching layer. Uses the shared `stripKeys` utility from `src/shared/format-utils.ts`.
 
 ```ts
 import { formatPage } from './confluence/confluence-format.js';

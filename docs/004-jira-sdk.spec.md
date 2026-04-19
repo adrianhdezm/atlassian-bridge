@@ -421,7 +421,7 @@ const results = await client.searchIssues({ jql: 'project = "PROJ" AND status = 
 
 ## Output Formatting
 
-`formatIssue` strips noisy API keys (`self`, `avatarUrls`, `iconUrl`) from an `Issue` before CLI output. Lives in `src/jira/jira-format.ts` — separate from `JiraClient` to keep presentation logic out of the data-fetching layer. Uses the shared `stripKeys` utility from `src/shared/strip-keys.ts`.
+`formatIssue` strips noisy API keys (`self`, `avatarUrls`, `iconUrl`) from an `Issue` before CLI output. Lives in `src/jira/jira-format.ts` — separate from `JiraClient` to keep presentation logic out of the data-fetching layer. Uses the shared `stripKeys` and `stripPaths` utilities from `src/shared/format-utils.ts`.
 
 ```ts
 import { formatIssue } from './jira/jira-format.js';

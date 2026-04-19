@@ -1,5 +1,5 @@
 import type { Issue } from './jira-models.js';
-import { stripKeys } from '../shared/strip-keys.js';
+import { stripKeys } from '../shared/format-utils.js';
 
 const STRIPPED_KEYS: ReadonlySet<string> = new Set(['self', 'avatarUrls', 'iconUrl']);
 

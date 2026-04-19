@@ -9,7 +9,7 @@ src/shared/
 ├── app-error.ts       AppError class (zero deps)
 ├── adf-schema.ts      Zod schema for Atlassian Document Format (deps: zod, adf-schema.json)
 ├── adf-schema.json    ADF JSON Schema source
-└── strip-keys.ts      Recursive key-stripping utility for output formatting (zero deps)
+└── format-utils.ts    Recursive key/path-stripping utilities for output formatting (zero deps)
 ```
 
 ## AppError
@@ -39,15 +39,29 @@ export const AdfSchema = z.fromJSONSchema(adfJsonSchema as JSONSchema.JSONSchema
 
 The `as JSONSchema.JSONSchema` cast is required because `resolveJsonModule` widens string literals (e.g. `$schema`) to `string`, which doesn't satisfy Zod's literal union. `satisfies` cannot be used here.
 
-## stripKeys
+## Format Utils
 
-Generic recursive utility that removes a set of keys from an object tree. Used by the domain-specific format modules (`jira-format.ts`, `confluence-format.ts`) to strip noisy API keys before CLI output.
+Two complementary utilities for cleaning API objects before CLI output. Used by the domain-specific format modules (`jira-format.ts`, `confluence-format.ts`).
+
+### stripKeys
+
+Generic recursive utility that removes a set of keys from an object tree.
 
 ```ts
 export function stripKeys(value: unknown, keys: ReadonlySet<string>): unknown;
 ```
 
 Recursively walks objects and arrays, omitting any key present in `keys`. Preserves primitives, `null`, and `undefined` unchanged. Each domain defines its own `STRIPPED_KEYS` set and a typed wrapper (e.g. `formatIssue`, `formatPage`).
+
+### stripPaths
+
+Removes values at specific dot-separated paths from an object.
+
+```ts
+export function stripPaths(value: unknown, paths: ReadonlyArray<string>): unknown;
+```
+
+Deep-clones the input, then walks each dot-separated path (e.g. `'fields.issuetype.description'`) and deletes the final key. Silently ignores paths that don't exist or where an intermediate segment is not an object. Preserves primitives, `null`, and `undefined` unchanged. Complements `stripKeys` — use `stripKeys` for global key removal and `stripPaths` for targeted path removal.
 
 ## Conventions
 
@@ -67,4 +81,4 @@ Credentials are resolved by `CredentialStorage` (see `005-credential-storage.spe
 
 ### Testing
 
-All test files follow AAA structure. Mock `fetch` globally via `vi.spyOn(globalThis, 'fetch')` where needed. `AppError` is tested via `tests/cli/cli-models.test.ts` (re-exported from `cli-models.ts`), `AdfSchema` is tested indirectly via the Confluence and Jira client tests. `stripKeys` is tested directly in `tests/shared/strip-keys.test.ts`.
+All test files follow AAA structure. Mock `fetch` globally via `vi.spyOn(globalThis, 'fetch')` where needed. `AppError` is tested via `tests/cli/cli-models.test.ts` (re-exported from `cli-models.ts`), `AdfSchema` is tested indirectly via the Confluence and Jira client tests. `stripKeys` and `stripPaths` are tested directly in `tests/shared/format-utils.test.ts`.
