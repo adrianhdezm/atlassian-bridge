@@ -430,7 +430,20 @@ const issue = await client.getIssue('PROJ-123');
 console.log(JSON.stringify(formatIssue(issue), null, 2));
 ```
 
-Recursively walks the object tree and removes keys in `STRIPPED_KEYS` (`self`, `avatarUrls`, `iconUrl`) at any depth — covers nested objects like `assignee`, `project`, `issuelinks`, and `subtasks`. Preserves `null` values and primitives. Returns `Record<string, unknown>`.
+Two-pass cleaning via `stripPaths(stripKeys(issue, STRIPPED_KEYS), STRIPPED_PATHS)`:
+
+1. **`stripKeys`** — recursively removes `self`, `avatarUrls`, `iconUrl` at any depth (covers nested objects like `assignee`, `project`, `issuelinks`, `subtasks`).
+2. **`stripPaths`** — removes targeted dot-paths for verbose/internal fields. Fans out across arrays (e.g. `fields.issuelinks.outwardIssue.fields.issuetype.description` applies to every issue link). Paths include:
+   - `expand`
+   - `fields.issuetype`: `description`, `avatarId`, `entityId`, `subtask`, `hierarchyLevel`
+   - `fields.creator` / `fields.reporter` / `fields.assignee`: `accountType`, `accountId`
+   - `fields.project`: `simplified`, `projectCategory`
+   - `fields.status`: `statusCategory`, `description`
+   - `fields.attachment.author`: `accountType`, `accountId`
+   - `fields.issuelinks.outwardIssue.fields`: `status.description`, `status.statusCategory`, `priority`, `issuetype.description`, `issuetype.avatarId`, `issuetype.entityId`, `issuetype.subtask`, `issuetype.hierarchyLevel`
+   - `transitions`: `to`, `hasScreen`, `isGlobal`, `isInitial`, `isConditional`, `isLooped`
+
+Preserves `null` values and primitives. Returns `Record<string, unknown>`.
 
 Applied in `atl-cli.ts` at the command layer — after fetching, before `JSON.stringify`. Used by: `getIssue`, `updateIssue`, `searchIssues` (maps over `issues` array), and `getChildIssues` (maps over result array). Not applied to `createIssue` (returns `CreatedIssue`, not `Issue`), `getTransitions`, or project commands.
 
