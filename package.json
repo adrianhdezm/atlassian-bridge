@@ -14,8 +14,23 @@
     "LICENSE",
     "package.json"
   ],
-  "main": "dist/ab-cli.js",
-  "bin": "dist/ab-cli.js",
+  "keywords": [
+    "atlassian",
+    "jira",
+    "confluence",
+    "cli"
+  ],
+  "homepage": "https://github.com/adrianhdezm/atlassian-bridge#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adrianhdezm/atlassian-bridge.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adrianhdezm/atlassian-bridge/issues"
+  },
+  "bin": {
+    "ab": "dist/ab-cli.js"
+  },
   "scripts": {
     "dev": "node --import=tsx src/ab-cli.ts",
     "build": "tsc -p tsconfig.node.json",
