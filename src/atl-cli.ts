@@ -7,6 +7,7 @@ import { Program } from './cli/program.js';
 import { AppError } from './shared/app-error.js';
 import { CredentialStorage } from './auth/credential-storage.js';
 import { JiraClient } from './jira/jira-client.js';
+import { formatIssue } from './jira/jira-format.js';
 import { ConfluenceClient } from './confluence/confluence-client.js';
 import type { Credentials } from './auth/credential-storage.js';
 
@@ -258,7 +259,7 @@ export function buildProgram(configDir?: string): Program {
       const creds = loadCredentials();
       const client = new JiraClient(creds);
       const result = await client.getIssue(args['issueKey'] as string);
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(formatIssue(result), null, 2));
     });
 
   issues
@@ -310,7 +311,7 @@ export function buildProgram(configDir?: string): Program {
         ...(description !== undefined ? { description: JSON.parse(description) as object } : {}),
         ...(labels !== undefined ? { labels: labels.split(',') } : {})
       });
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(formatIssue(result), null, 2));
     });
 
   issues
@@ -365,7 +366,7 @@ export function buildProgram(configDir?: string): Program {
         maxResults: Number(opts['max-results']),
         ...(fields !== undefined ? { fields: fields.split(',') } : {})
       });
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify({ ...result, issues: result.issues.map(formatIssue) }, null, 2));
     });
 
   issues
@@ -376,7 +377,7 @@ export function buildProgram(configDir?: string): Program {
       const creds = loadCredentials();
       const client = new JiraClient(creds);
       const result = await client.getChildIssues(args['issueKey'] as string);
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(result.map(formatIssue), null, 2));
     });
 
   // jira projects

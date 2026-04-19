@@ -7,7 +7,8 @@ Thin client for Jira Cloud REST API v3 issue, transition, search, and project op
 ```
 src/jira/
 ├── jira-models.ts     Zod schemas + pagination base schemas for API responses (deps: zod)
-└── jira-client.ts     JiraClient class — auth, issues, transitions, search, projects (deps: jira-models, http-client/fetchJsonObject, http-client/fetchAll, shared/adf-schema)
+├── jira-client.ts     JiraClient class — auth, issues, transitions, search, projects (deps: jira-models, http-client/fetchJsonObject, http-client/fetchAll, shared/adf-schema)
+└── jira-format.ts     Output formatting — strips noise keys before CLI display (deps: jira-models)
 ```
 
 ADF schema is shared from `src/shared/adf-schema.ts` — no duplication. Jira validates ADF as an object (not a JSON string), so no `JSON.parse` step is needed.
@@ -418,10 +419,25 @@ const created = await client.createIssue({
 const results = await client.searchIssues({ jql: 'project = "PROJ" AND status = "To Do"' });
 ```
 
+## Output Formatting
+
+`formatIssue` strips noisy API keys (`self`, `avatarUrls`) from an `Issue` before CLI output. Lives in `src/jira/jira-format.ts` — separate from `JiraClient` to keep presentation logic out of the data-fetching layer.
+
+```ts
+import { formatIssue } from './jira/jira-format.js';
+
+const issue = await client.getIssue('PROJ-123');
+console.log(JSON.stringify(formatIssue(issue), null, 2));
+```
+
+Recursively walks the object tree and removes keys in `STRIPPED_KEYS` (`self`, `avatarUrls`, `iconUrl`) at any depth — covers nested objects like `assignee`, `project`, `issuelinks`, and `subtasks`. Preserves `null` values and primitives. Returns `Record<string, unknown>`.
+
+Applied in `atl-cli.ts` at the command layer — after fetching, before `JSON.stringify`. Used by: `getIssue`, `updateIssue`, `searchIssues` (maps over `issues` array), and `getChildIssues` (maps over result array). Not applied to `createIssue` (returns `CreatedIssue`, not `Issue`), `getTransitions`, or project commands.
+
 ## Error Handling
 
 Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createIssue` and `updateIssue` throw `ZodError` if the ADF description is invalid — before any HTTP request, only when `description` is provided. Void methods (`deleteIssue`, `transitionIssue`) use raw `fetch` and throw `HttpError` on non-ok responses — note that void methods using raw `fetch` do **not** retry on transient errors (unlike `fetchJsonObject`, which retries via `retryWithBackoff`).
 
 ## Testing
 
-Tests in `tests/jira/jira-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).
+Tests in `tests/jira/jira-client.test.ts` and `tests/jira/jira-format.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).
