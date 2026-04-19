@@ -8,7 +8,8 @@ Cross-domain models that live in `src/shared/`. No internal dependencies between
 src/shared/
 ├── app-error.ts       AppError class (zero deps)
 ├── adf-schema.ts      Zod schema for Atlassian Document Format (deps: zod, adf-schema.json)
-└── adf-schema.json    ADF JSON Schema source
+├── adf-schema.json    ADF JSON Schema source
+└── strip-keys.ts      Recursive key-stripping utility for output formatting (zero deps)
 ```
 
 ## AppError
@@ -38,6 +39,16 @@ export const AdfSchema = z.fromJSONSchema(adfJsonSchema as JSONSchema.JSONSchema
 
 The `as JSONSchema.JSONSchema` cast is required because `resolveJsonModule` widens string literals (e.g. `$schema`) to `string`, which doesn't satisfy Zod's literal union. `satisfies` cannot be used here.
 
+## stripKeys
+
+Generic recursive utility that removes a set of keys from an object tree. Used by the domain-specific format modules (`jira-format.ts`, `confluence-format.ts`) to strip noisy API keys before CLI output.
+
+```ts
+export function stripKeys(value: unknown, keys: ReadonlySet<string>): unknown;
+```
+
+Recursively walks objects and arrays, omitting any key present in `keys`. Preserves primitives, `null`, and `undefined` unchanged. Each domain defines its own `STRIPPED_KEYS` set and a typed wrapper (e.g. `formatIssue`, `formatPage`).
+
 ## Conventions
 
 ### Loose Zod Schemas
@@ -56,4 +67,4 @@ Credentials are resolved by `CredentialStorage` (see `005-credential-storage.spe
 
 ### Testing
 
-All test files follow AAA structure. Mock `fetch` globally via `vi.spyOn(globalThis, 'fetch')` where needed. No dedicated tests for `src/shared/` — `AppError` is tested via `tests/cli/cli-models.test.ts` (re-exported from `cli-models.ts`), `AdfSchema` is tested indirectly via the Confluence and Jira client tests.
+All test files follow AAA structure. Mock `fetch` globally via `vi.spyOn(globalThis, 'fetch')` where needed. `AppError` is tested via `tests/cli/cli-models.test.ts` (re-exported from `cli-models.ts`), `AdfSchema` is tested indirectly via the Confluence and Jira client tests. `stripKeys` is tested directly in `tests/shared/strip-keys.test.ts`.

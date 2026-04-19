@@ -7,7 +7,8 @@ Thin client for Confluence Cloud REST API v2 page operations. Lives in `src/conf
 ```
 src/confluence/
 ├── confluence-models.ts    Zod schemas + confluencePaginatedSchema factory for API responses (deps: zod)
-└── confluence-client.ts   ConfluenceClient class — auth, pages, search, space key resolution (deps: confluence-models, shared/adf-schema, shared/app-error, http-client/fetchJsonObject, http-client/fetchAll)
+├── confluence-client.ts   ConfluenceClient class — auth, pages, search, space key resolution (deps: confluence-models, shared/adf-schema, shared/app-error, http-client/fetchJsonObject, http-client/fetchAll)
+└── confluence-format.ts   Output formatting — strips noise keys before CLI display (deps: confluence-models, shared/strip-keys)
 ```
 
 ## ConfluenceClient
@@ -348,10 +349,25 @@ const created = await client.createPage({
 const results = await client.searchPages({ cql: 'type = page AND space = "DEV"' });
 ```
 
+## Output Formatting
+
+`formatPage` strips noisy API keys (`_links`) from a `Page` before CLI output. Lives in `src/confluence/confluence-format.ts` — separate from `ConfluenceClient` to keep presentation logic out of the data-fetching layer. Uses the shared `stripKeys` utility from `src/shared/strip-keys.ts`.
+
+```ts
+import { formatPage } from './confluence/confluence-format.js';
+
+const page = await client.getPage('12345');
+console.log(JSON.stringify(formatPage(page), null, 2));
+```
+
+Recursively walks the object tree and removes keys in `STRIPPED_KEYS` (`_links`) at any depth. Returns `Record<string, unknown>`.
+
+Applied in `atl-cli.ts` at the command layer — after fetching, before `JSON.stringify`. Used by: `getPage`, `createPage`, `updatePage`, and `getPages` (maps over `results` array). Pagination envelope `_links` (containing the `next` cursor) is preserved in `getPages` so CLI users can still paginate. Not applied to `searchPages`, `getDescendants`, `getSpaceTree`, or space commands.
+
 ## Error Handling
 
 Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createPage` and `updatePage` throw `ZodError` if the ADF body is invalid — before any HTTP request. `deletePage` uses raw `fetch` and throws `HttpError` on non-ok (`response.ok === false`) responses — note that void methods using raw `fetch` do **not** retry on transient errors (unlike `fetchJsonObject`, which retries via `retryWithBackoff`). `resolveSpaceId` throws `AppError` when a space key returns no results.
 
 ## Testing
 
-Tests in `tests/confluence/confluence-client.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `confluencePaginatedSchema` (parsing with next link, empty results, invalid item rejection); constructor (auth headers, URL building), getPage, getPages, createPage (ADF validation, representation envelope), updatePage (version fetch, ADF validation), deletePage (204 assertion), searchPages (CQL encoding, v1 response flattening), getDescendants (auto-pagination via `fetchAll`, depth/limit params), getSpaceTree (root fetch + parallel descendants, depth merging), resolveSpaceId (numeric pass-through, alpha key lookup, caching, not-found error).
+Tests in `tests/confluence/confluence-client.test.ts` and `tests/confluence/confluence-format.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `confluencePaginatedSchema` (parsing with next link, empty results, invalid item rejection); constructor (auth headers, URL building), getPage, getPages, createPage (ADF validation, representation envelope), updatePage (version fetch, ADF validation), deletePage (204 assertion), searchPages (CQL encoding, v1 response flattening), getDescendants (auto-pagination via `fetchAll`, depth/limit params), getSpaceTree (root fetch + parallel descendants, depth merging), resolveSpaceId (numeric pass-through, alpha key lookup, caching, not-found error).
