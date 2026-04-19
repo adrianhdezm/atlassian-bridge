@@ -215,7 +215,7 @@ argv
  └─ invoke action(args, opts)
 ```
 
-`--version` is checked via `tokens.includes()` so it triggers from any position (e.g. `ab auth --version`). `--help` at root only fires when it is the first token; deeper `--help` is handled at each dispatch level.
+`--version` is checked via `tokens.includes()` so it triggers from any position (e.g. `atl auth --version`). `--help` at root only fires when it is the first token; deeper `--help` is handled at each dispatch level.
 
 Top-level commands take priority over namespaces when names collide.
 

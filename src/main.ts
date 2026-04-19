@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { buildProgram } from './ab-cli.js';
+import { buildProgram } from './atl-cli.js';
 
 process.on('unhandledRejection', (err) => {
   const message = err instanceof Error ? err.message : String(err);

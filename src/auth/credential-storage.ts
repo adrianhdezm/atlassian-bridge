@@ -23,7 +23,7 @@ export class CredentialStorage {
   private readonly configDir: string;
 
   constructor(configDir?: string) {
-    this.configDir = configDir ?? path.join(os.homedir(), '.ab-cli');
+    this.configDir = configDir ?? path.join(os.homedir(), '.atl-cli');
     this.filePath = path.join(this.configDir, 'credentials.json');
   }
 

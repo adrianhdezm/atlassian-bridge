@@ -1,6 +1,6 @@
 # Atlassian Bridge CLI
 
-CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. Split across two files: `src/ab-cli.ts` (program factory) and `src/main.ts` (entry point).
+CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. Split across two files: `src/atl-cli.ts` (program factory) and `src/main.ts` (entry point).
 
 ## Command Overview
 
@@ -35,8 +35,8 @@ Global option: `-v, --verbose` (available on all commands).
 
 ```
 src/
-├── main.ts      Entry point — bootstraps the program and registers the global error handler (deps: ab-cli)
-└── ab-cli.ts    Program factory — namespaces, commands, actions (deps: node:fs, node:path, node:url, cli/program, shared/app-error, auth/credential-storage, jira/jira-client, confluence/confluence-client)
+├── main.ts      Entry point — bootstraps the program and registers the global error handler (deps: atl-cli)
+└── atl-cli.ts    Program factory — namespaces, commands, actions (deps: node:fs, node:path, node:url, cli/program, shared/app-error, auth/credential-storage, jira/jira-client, confluence/confluence-client)
 ```
 
 ## Program
@@ -56,7 +56,7 @@ export function buildProgram(configDir?: string): Program {
   const credentialStorage = new CredentialStorage(configDir);
   // loadCredentials() defined here — closes over credentialStorage
   const program = new Program();
-  program.name('ab').description('Atlassian Bridge — Jira & Confluence from the terminal').version(version);
+  program.name('atl').description('Atlassian Bridge — Jira & Confluence from the terminal').version(version);
   // --version output: version string from package.json (no program name prefix)
   program.option('-v, --verbose', 'Enable verbose output');
   // ... register namespaces, commands, subcommands ...
@@ -66,7 +66,7 @@ export function buildProgram(configDir?: string): Program {
 
 The version is read from `package.json` at module load time using `node:fs`. The path is resolved relative to the module file via `import.meta.url`, so it works from both `src/` (dev/tsx) and `dist/` (compiled) since both are one level below the project root.
 
-The optional `configDir` is passed through to `CredentialStorage`. When omitted (production), defaults to `~/.ab-cli`. Tests pass a temp directory for isolation.
+The optional `configDir` is passed through to `CredentialStorage`. When omitted (production), defaults to `~/.atl-cli`. Tests pass a temp directory for isolation.
 
 ## Entry Point
 
@@ -75,7 +75,7 @@ The optional `configDir` is passed through to `CredentialStorage`. When omitted 
 ```ts
 #!/usr/bin/env node
 
-import { buildProgram } from './ab-cli.js';
+import { buildProgram } from './atl-cli.js';
 
 process.on('unhandledRejection', (err) => {
   const message = err instanceof Error ? err.message : String(err);
@@ -86,7 +86,7 @@ process.on('unhandledRejection', (err) => {
 buildProgram().parse(process.argv);
 ```
 
-This separation keeps `ab-cli.ts` side-effect-free so tests can import `buildProgram` without triggering `parse()` or the rejection handler.
+This separation keeps `atl-cli.ts` side-effect-free so tests can import `buildProgram` without triggering `parse()` or the rejection handler.
 
 ## Authentication
 
@@ -106,7 +106,7 @@ function loadCredentials(): Credentials {
     return credentialStorage.load();
   } catch (err) {
     if (err instanceof AppError) {
-      throw new AppError(`${err.message} — run \`ab auth login\` or set the environment variable`);
+      throw new AppError(`${err.message} — run \`atl auth login\` or set the environment variable`);
     }
     throw err;
   }
@@ -129,7 +129,7 @@ Actions print results to stdout via `console.log`:
 
 ## Async Error Handling
 
-Most actions are async (SDK calls return promises). Auth actions (`login`, `status`, `logout`) are synchronous since credential storage is file-based. The framework fires actions with `void action(...)` (fire-and-forget), so `main.ts` registers a global `unhandledRejection` handler before calling `parse()`. This handler catches HTTP errors, Zod validation errors, and missing env var errors uniformly. Because it lives in `main.ts`, it never runs when tests import `buildProgram` from `ab-cli.ts`.
+Most actions are async (SDK calls return promises). Auth actions (`login`, `status`, `logout`) are synchronous since credential storage is file-based. The framework fires actions with `void action(...)` (fire-and-forget), so `main.ts` registers a global `unhandledRejection` handler before calling `parse()`. This handler catches HTTP errors, Zod validation errors, and missing env var errors uniformly. Because it lives in `main.ts`, it never runs when tests import `buildProgram` from `atl-cli.ts`.
 
 ## Namespaces
 
@@ -150,10 +150,10 @@ const auth = program.command('auth').description('Manage authentication');
 
 #### `login`
 
-Save credentials to `~/.ab-cli/credentials.json`.
+Save credentials to `~/.atl-cli/credentials.json`.
 
 ```
-ab auth login --base-url <url> --email <email> --token <token>
+atl auth login --base-url <url> --email <email> --token <token>
 ```
 
 | Flag               | Description            |
@@ -169,7 +169,7 @@ All three flags required — the action throws `AppError` if any is absent. On s
 Show current credential source and values.
 
 ```
-ab auth status
+atl auth status
 ```
 
 Loads via `loadCredentials()`. Prints base URL, email, and a masked token (last 4 characters visible, prefixed with `****`). If the token is 4 characters or shorter, display `****` only to avoid revealing the entire value. If no credentials are found, the error includes the remediation hint.
@@ -185,7 +185,7 @@ Token:     ****abcd
 Remove stored credentials file.
 
 ```
-ab auth logout
+atl auth logout
 ```
 
 Calls `CredentialStorage.clear()`. Prints `"Credentials removed."` if the file existed, `"No stored credentials found."` otherwise. Does **not** affect environment variables.
@@ -203,7 +203,7 @@ const pages = confluence.command('pages').description('Manage pages');
 Fetch a single page by ID.
 
 ```
-ab confluence pages get <pageId>
+atl confluence pages get <pageId>
 ```
 
 ```ts
@@ -226,7 +226,7 @@ SDK: `getPage(pageId)`
 List pages with optional filters.
 
 ```
-ab confluence pages list [flags]
+atl confluence pages list [flags]
 ```
 
 | Flag                | Description               | Default |
@@ -244,7 +244,7 @@ SDK: `getPages({ spaceIdOrKey, title, status, limit, cursor })`
 Create a new page.
 
 ```
-ab confluence pages create <title> [flags]
+atl confluence pages create <title> [flags]
 ```
 
 | Flag               | Description                                   | Default                                     |
@@ -262,7 +262,7 @@ SDK: `createPage({ spaceIdOrKey, title, parentId, body })`
 Update a page's title and/or body.
 
 ```
-ab confluence pages update <pageId> [flags]
+atl confluence pages update <pageId> [flags]
 ```
 
 | Flag              | Description  |
@@ -279,7 +279,7 @@ SDK: `updatePage(pageId, { title, body })`
 Delete (trash) a page.
 
 ```
-ab confluence pages delete <pageId>
+atl confluence pages delete <pageId>
 ```
 
 SDK: `deletePage(pageId)` → prints `"Done."`
@@ -289,7 +289,7 @@ SDK: `deletePage(pageId)` → prints `"Done."`
 Fetch descendants as a flat list. Auto-paginates internally.
 
 ```
-ab confluence pages descendants <pageId> [flags]
+atl confluence pages descendants <pageId> [flags]
 ```
 
 | Flag          | Description          | Default |
@@ -304,7 +304,7 @@ SDK: `getDescendants(pageId, { depth, limit })`
 Search pages via CQL.
 
 ```
-ab confluence pages search <cql> [flags]
+atl confluence pages search <cql> [flags]
 ```
 
 | Flag                | Description       | Default |
@@ -327,7 +327,7 @@ const spaces = confluence.command('spaces').description('Manage spaces');
 Fetch a single space by ID or key.
 
 ```
-ab confluence spaces get <spaceIdOrKey>
+atl confluence spaces get <spaceIdOrKey>
 ```
 
 Accepts a numeric space ID or an alphabetic space key. The SDK resolves the identifier and returns the full space object.
@@ -339,7 +339,7 @@ SDK: `getSpace(spaceIdOrKey)`
 Fetch full space page tree as a flat list. Accepts a numeric space ID or an alphabetic space key.
 
 ```
-ab confluence spaces tree <spaceIdOrKey> [flags]
+atl confluence spaces tree <spaceIdOrKey> [flags]
 ```
 
 | Flag          | Description      | Default |
@@ -361,7 +361,7 @@ const issues = jira.command('issues').description('Manage issues');
 Fetch a single issue by key or ID.
 
 ```
-ab jira issues get <issueKey>
+atl jira issues get <issueKey>
 ```
 
 SDK: `getIssue(issueKey)`
@@ -371,7 +371,7 @@ SDK: `getIssue(issueKey)`
 Create a new issue.
 
 ```
-ab jira issues create <summary> [flags]
+atl jira issues create <summary> [flags]
 ```
 
 | Flag                  | Description                                   | Default |
@@ -395,7 +395,7 @@ SDK: `createIssue({ projectKey, issueTypeName, summary, description, parentKey, 
 Update an issue. All flags optional — only provided fields are sent (partial update).
 
 ```
-ab jira issues update <issueKey> [flags]
+atl jira issues update <issueKey> [flags]
 ```
 
 | Flag                  | Description               |
@@ -413,7 +413,7 @@ SDK: `updateIssue(issueKey, { summary, description, labels })` → prints the up
 Delete an issue.
 
 ```
-ab jira issues delete <issueKey>
+atl jira issues delete <issueKey>
 ```
 
 SDK: `deleteIssue(issueKey)` → prints `"Done."`
@@ -423,7 +423,7 @@ SDK: `deleteIssue(issueKey)` → prints `"Done."`
 List available transitions for an issue.
 
 ```
-ab jira issues transitions <issueKey>
+atl jira issues transitions <issueKey>
 ```
 
 SDK: `getTransitions(issueKey)`
@@ -433,7 +433,7 @@ SDK: `getTransitions(issueKey)`
 Execute a workflow transition.
 
 ```
-ab jira issues transition <issueKey> <transitionId>
+atl jira issues transition <issueKey> <transitionId>
 ```
 
 SDK: `transitionIssue(issueKey, { transitionId })` → prints `"Done."`
@@ -443,7 +443,7 @@ SDK: `transitionIssue(issueKey, { transitionId })` → prints `"Done."`
 Search issues via JQL.
 
 ```
-ab jira issues search <jql> [flags]
+atl jira issues search <jql> [flags]
 ```
 
 | Flag                        | Description                 | Default |
@@ -461,7 +461,7 @@ SDK: `searchIssues({ jql, nextPageToken, maxResults, fields })`
 Fetch all child issues. Auto-paginates internally.
 
 ```
-ab jira issues children <issueKey>
+atl jira issues children <issueKey>
 ```
 
 SDK: `getChildIssues(issueKey)`
@@ -479,7 +479,7 @@ const projects = jira.command('projects').description('Manage projects');
 Fetch a single project by key or ID.
 
 ```
-ab jira projects get <projectKeyOrId>
+atl jira projects get <projectKeyOrId>
 ```
 
 SDK: `getProject(projectKeyOrId)`
@@ -489,7 +489,7 @@ SDK: `getProject(projectKeyOrId)`
 List projects with optional name filter.
 
 ```
-ab jira projects list [flags]
+atl jira projects list [flags]
 ```
 
 | Flag                | Description    | Default |
@@ -505,11 +505,11 @@ SDK: `getProjects({ startAt, maxResults, query })`
 Each level prints contextual help via `--help`. Example at the deepest level:
 
 ```
-$ ab confluence pages create --help
+$ atl confluence pages create --help
 Create a new page
 
 USAGE
-  ab confluence pages create <title> [flags]
+  atl confluence pages create <title> [flags]
 
 ARGUMENTS
   <title>    Page title
@@ -524,11 +524,11 @@ FLAGS
 
 ## Testing
 
-Tests in `tests/ab-cli.test.ts`. CredentialStorage tests live separately (see `005-credential-storage.spec.md`).
+Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `005-credential-storage.spec.md`).
 
 ### Strategy
 
-`buildProgram(configDir?)` is exported as a factory function. Tests call `buildProgram(tmpDir).parse(argv, writer)` with a `vi.fn()` writer and a per-test temp directory, isolating credential storage from `~/.ab-cli`. Set env vars in `beforeEach`, restore in `afterEach`.
+`buildProgram(configDir?)` is exported as a factory function. Tests call `buildProgram(tmpDir).parse(argv, writer)` with a `vi.fn()` writer and a per-test temp directory, isolating credential storage from `~/.atl-cli`. Set env vars in `beforeEach`, restore in `afterEach`.
 
 ### Coverage
 

@@ -4,7 +4,7 @@ import { AppError } from '../../src/cli/cli-models.js';
 
 function setup() {
   const program = new Program();
-  program.name('ab').description('Atlassian Bridge CLI').version('0.1.0');
+  program.name('atl').description('Atlassian Bridge CLI').version('0.1.0');
   program.option('-v, --verbose', 'Enable verbose output');
 
   const auth = program.command('auth').description('Authentication');
@@ -36,7 +36,7 @@ describe('program', () => {
       const program = setup();
       const write = vi.fn();
 
-      program.parse(['node', 'ab', '--version'], write);
+      program.parse(['node', 'atl', '--version'], write);
 
       expect(write).toHaveBeenCalledWith('0.1.0');
     });
@@ -45,7 +45,7 @@ describe('program', () => {
       const program = setup();
       const write = vi.fn();
 
-      program.parse(['node', 'ab', 'auth', '--version'], write);
+      program.parse(['node', 'atl', 'auth', '--version'], write);
 
       expect(write).toHaveBeenCalledWith('0.1.0');
     });
@@ -56,7 +56,7 @@ describe('program', () => {
       const program = setup();
       const write = vi.fn();
 
-      program.parse(['node', 'ab'], write);
+      program.parse(['node', 'atl'], write);
 
       expect(write).toHaveBeenCalledOnce();
       const output = getOutput(write);
@@ -71,7 +71,7 @@ describe('program', () => {
       const program = setup();
       const write = vi.fn();
 
-      program.parse(['node', 'ab', '--help'], write);
+      program.parse(['node', 'atl', '--help'], write);
 
       expect(write).toHaveBeenCalledOnce();
       const output = getOutput(write);
@@ -82,7 +82,7 @@ describe('program', () => {
       const program = setup();
       const write = vi.fn();
 
-      program.parse(['node', 'ab', 'jira'], write);
+      program.parse(['node', 'atl', 'jira'], write);
 
       expect(write).toHaveBeenCalledOnce();
       const output = getOutput(write);
@@ -94,7 +94,7 @@ describe('program', () => {
       const program = setup();
       const write = vi.fn();
 
-      program.parse(['node', 'ab', 'jira', '--help'], write);
+      program.parse(['node', 'atl', 'jira', '--help'], write);
 
       const output = getOutput(write);
       expect(output).toContain('Jira operations');
@@ -104,7 +104,7 @@ describe('program', () => {
       const program = setup();
       const write = vi.fn();
 
-      program.parse(['node', 'ab', 'auth'], write);
+      program.parse(['node', 'atl', 'auth'], write);
 
       const output = getOutput(write);
       expect(output).toContain('Authentication');
@@ -116,7 +116,7 @@ describe('program', () => {
       const program = setup();
       const write = vi.fn();
 
-      program.parse(['node', 'ab', 'jira', 'issues', 'create', '--help'], write);
+      program.parse(['node', 'atl', 'jira', 'issues', 'create', '--help'], write);
 
       const output = getOutput(write);
       expect(output).toContain('Create a new issue');
@@ -132,12 +132,12 @@ describe('program', () => {
     it('invokes top-level subcommand action', () => {
       const action = vi.fn();
       const program = new Program();
-      program.name('ab');
+      program.name('atl');
       const cmd = program.command('auth').description('Auth');
       cmd.subcommand('login').description('Log in').action(action);
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
-      program.parse(['node', 'ab', 'auth', 'login'], vi.fn());
+      program.parse(['node', 'atl', 'auth', 'login'], vi.fn());
 
       expect(action).toHaveBeenCalledOnce();
       exitSpy.mockRestore();
@@ -146,7 +146,7 @@ describe('program', () => {
     it('invokes namespaced subcommand action with parsed args and opts', () => {
       const action = vi.fn();
       const program = new Program();
-      program.name('ab').option('-v, --verbose', 'Verbose');
+      program.name('atl').option('-v, --verbose', 'Verbose');
       const ns = program.namespace('jira').description('Jira');
       const cmd = ns.command('issues').description('Issues');
       cmd
@@ -157,7 +157,7 @@ describe('program', () => {
         .action(action);
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
-      program.parse(['node', 'ab', 'jira', 'issues', 'create', 'My Issue', '-p', 'high', '-v'], vi.fn());
+      program.parse(['node', 'atl', 'jira', 'issues', 'create', 'My Issue', '-p', 'high', '-v'], vi.fn());
 
       expect(action).toHaveBeenCalledOnce();
       const args = action.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -170,12 +170,12 @@ describe('program', () => {
     it('applies default option values', () => {
       const action = vi.fn();
       const program = new Program();
-      program.name('ab').option('-v, --verbose', 'Verbose');
+      program.name('atl').option('-v, --verbose', 'Verbose');
       const cmd = program.command('cmd').description('Cmd');
       cmd.subcommand('sub').description('Sub').option('-p, --priority <level>', 'Priority', 'medium').action(action);
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
-      program.parse(['node', 'ab', 'cmd', 'sub'], vi.fn());
+      program.parse(['node', 'atl', 'cmd', 'sub'], vi.fn());
 
       const opts = action.mock.calls[0]?.[1] as Record<string, unknown>;
       expect(opts).toEqual({ priority: 'medium', verbose: false });
@@ -189,7 +189,7 @@ describe('program', () => {
       const write = vi.fn();
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
-      program.parse(['node', 'ab', 'nope'], write);
+      program.parse(['node', 'atl', 'nope'], write);
 
       expect(write).toHaveBeenCalledWith(expect.stringContaining('error:'));
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -201,7 +201,7 @@ describe('program', () => {
       const write = vi.fn();
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
-      program.parse(['node', 'ab', 'auth', 'nope'], write);
+      program.parse(['node', 'atl', 'auth', 'nope'], write);
 
       expect(write).toHaveBeenCalledWith(expect.stringContaining('error:'));
       expect(exitSpy).toHaveBeenCalledWith(1);
@@ -210,7 +210,7 @@ describe('program', () => {
 
     it('re-throws non-AppError exceptions', () => {
       const program = new Program();
-      program.name('ab');
+      program.name('atl');
       const cmd = program.command('cmd').description('Cmd');
       cmd
         .subcommand('sub')
@@ -220,7 +220,7 @@ describe('program', () => {
         });
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
-      expect(() => program.parse(['node', 'ab', 'cmd', 'sub'], vi.fn())).toThrow(TypeError);
+      expect(() => program.parse(['node', 'atl', 'cmd', 'sub'], vi.fn())).toThrow(TypeError);
 
       exitSpy.mockRestore();
     });
@@ -231,7 +231,7 @@ describe('program', () => {
       const cmdAction = vi.fn();
       const nsAction = vi.fn();
       const program = new Program();
-      program.name('ab');
+      program.name('atl');
       const cmd = program.command('shared').description('Command');
       cmd.subcommand('run').description('Run').action(cmdAction);
       const ns = program.namespace('shared').description('Namespace');
@@ -239,7 +239,7 @@ describe('program', () => {
       nsCmd.subcommand('go').description('Go').action(nsAction);
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
 
-      program.parse(['node', 'ab', 'shared', 'run'], vi.fn());
+      program.parse(['node', 'atl', 'shared', 'run'], vi.fn());
 
       expect(cmdAction).toHaveBeenCalledOnce();
       expect(nsAction).not.toHaveBeenCalled();

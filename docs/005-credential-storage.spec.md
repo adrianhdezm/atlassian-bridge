@@ -30,7 +30,7 @@ The `Credentials` type is compatible with both `ConfluenceClientConfig` and `Jir
 For each credential field independently, the storage takes the first value found:
 
 1. **Environment variable** — highest priority, overrides file on a per-field basis (empty strings are treated as unset)
-2. **File storage** — `~/.ab-cli/credentials.json`
+2. **File storage** — `~/.atl-cli/credentials.json`
 
 If a field is missing from both sources, `load()` throws `AppError` naming the missing field.
 
@@ -44,7 +44,7 @@ If a field is missing from both sources, `load()` throws `AppError` naming the m
 
 ### File Storage
 
-Path: `path.join(os.homedir(), '.ab-cli', 'credentials.json')` — JSON object matching the `Credentials` shape.
+Path: `path.join(os.homedir(), '.atl-cli', 'credentials.json')` — JSON object matching the `Credentials` shape.
 
 A partial or malformed credentials file is an error — if the file exists, it must contain all three fields with valid types. `readFile()` throws `AppError` on malformed JSON, missing fields, or wrong types.
 
@@ -62,7 +62,7 @@ export class CredentialStorage {
 
 | Method        | Behavior                                                                                                        |
 | ------------- | --------------------------------------------------------------------------------------------------------------- |
-| `constructor` | Defaults `configDir` to `~/.ab-cli`. Accepts override for testing.                                              |
+| `constructor` | Defaults `configDir` to `~/.atl-cli`. Accepts override for testing.                                             |
 | `load()`      | Resolves each field from env var then file. Throws `AppError` per missing field.                                |
 | `save()`      | Writes `credentials.json` to `configDir`. Creates directory if needed.                                          |
 | `clear()`     | Deletes `credentials.json`. Returns `true` if removed, `false` if no file existed. Re-throws non-ENOENT errors. |
@@ -73,4 +73,4 @@ Internally, `readFile()` reads and validates the file against `CredentialsSchema
 
 ## Testing
 
-Tests in `tests/auth/credential-storage.test.ts`. Uses a temp directory (via `fs.mkdtempSync`) to avoid touching `~/.ab-cli/`. Covers: load (env var priority, file fallback, per-field merging, missing field errors, malformed file errors), save (file creation, directory creation, overwrite), clear (file removal, no-file case).
+Tests in `tests/auth/credential-storage.test.ts`. Uses a temp directory (via `fs.mkdtempSync`) to avoid touching `~/.atl-cli/`. Covers: load (env var priority, file fallback, per-field merging, missing field errors, malformed file errors), save (file creation, directory creation, overwrite), clear (file removal, no-file case).

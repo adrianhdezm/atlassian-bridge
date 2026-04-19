@@ -13,7 +13,7 @@ describe('help', () => {
   describe('formatRootHelp', () => {
     it('includes description, usage, commands, namespaces, and flags', () => {
       const output = formatRootHelp(
-        'ab',
+        'atl',
         'Atlassian Bridge CLI',
         [{ name: 'auth', description: 'Authentication' }],
         [{ name: 'jira', description: 'Jira operations' }],
@@ -22,7 +22,7 @@ describe('help', () => {
 
       expect(output).toContain('Atlassian Bridge CLI');
       expect(output).toContain('USAGE');
-      expect(output).toContain('ab <command> [flags]');
+      expect(output).toContain('atl <command> [flags]');
       expect(output).toContain('COMMANDS');
       expect(output).toContain('auth');
       expect(output).toContain('NAMESPACES');
@@ -33,13 +33,13 @@ describe('help', () => {
     });
 
     it('omits COMMANDS section when empty', () => {
-      const output = formatRootHelp('ab', 'desc', [], [{ name: 'jira', description: 'Jira' }], []);
+      const output = formatRootHelp('atl', 'desc', [], [{ name: 'jira', description: 'Jira' }], []);
 
       expect(output).not.toContain('COMMANDS');
     });
 
     it('omits NAMESPACES section when empty', () => {
-      const output = formatRootHelp('ab', 'desc', [{ name: 'auth', description: 'Auth' }], [], []);
+      const output = formatRootHelp('atl', 'desc', [{ name: 'auth', description: 'Auth' }], [], []);
 
       expect(output).not.toContain('NAMESPACES');
     });
@@ -47,10 +47,10 @@ describe('help', () => {
 
   describe('formatNamespaceHelp', () => {
     it('includes description, usage, and commands', () => {
-      const output = formatNamespaceHelp('ab', 'jira', 'Jira operations', [{ name: 'issues', description: 'Manage issues' }]);
+      const output = formatNamespaceHelp('atl', 'jira', 'Jira operations', [{ name: 'issues', description: 'Manage issues' }]);
 
       expect(output).toContain('Jira operations');
-      expect(output).toContain('ab jira <command> [flags]');
+      expect(output).toContain('atl jira <command> [flags]');
       expect(output).toContain('COMMANDS');
       expect(output).toContain('issues');
     });
@@ -58,25 +58,25 @@ describe('help', () => {
 
   describe('formatCommandHelp', () => {
     it('includes description, usage, and subcommands for top-level command', () => {
-      const output = formatCommandHelp('ab', '', 'auth', 'Authentication', [{ name: 'login', description: 'Log in' }]);
+      const output = formatCommandHelp('atl', '', 'auth', 'Authentication', [{ name: 'login', description: 'Log in' }]);
 
       expect(output).toContain('Authentication');
-      expect(output).toContain('ab auth <subcommand> [flags]');
+      expect(output).toContain('atl auth <subcommand> [flags]');
       expect(output).toContain('SUBCOMMANDS');
       expect(output).toContain('login');
     });
 
     it('includes namespace in usage for namespaced command', () => {
-      const output = formatCommandHelp('ab', 'jira', 'issues', 'Manage issues', [{ name: 'create', description: 'Create issue' }]);
+      const output = formatCommandHelp('atl', 'jira', 'issues', 'Manage issues', [{ name: 'create', description: 'Create issue' }]);
 
-      expect(output).toContain('ab jira issues <subcommand> [flags]');
+      expect(output).toContain('atl jira issues <subcommand> [flags]');
     });
   });
 
   describe('formatSubcommandHelp', () => {
     it('formats full subcommand help with arguments, sub options, and global options', () => {
       const output = formatSubcommandHelp(
-        'ab',
+        'atl',
         'jira',
         'issues',
         'create',
@@ -87,7 +87,7 @@ describe('help', () => {
       );
 
       expect(output).toContain('Create a new issue');
-      expect(output).toContain('ab jira issues create <title> [flags]');
+      expect(output).toContain('atl jira issues create <title> [flags]');
       expect(output).toContain('ARGUMENTS');
       expect(output).toContain('<title>');
       expect(output).toContain('Issue title');
@@ -100,7 +100,7 @@ describe('help', () => {
 
     it('aligns descriptions to the same column', () => {
       const output = formatSubcommandHelp(
-        'ab',
+        'atl',
         '',
         'cmd',
         'sub',
@@ -118,7 +118,7 @@ describe('help', () => {
     });
 
     it('omits ARGUMENTS when none', () => {
-      const output = formatSubcommandHelp('ab', '', 'auth', 'login', 'Log in', [], [], []);
+      const output = formatSubcommandHelp('atl', '', 'auth', 'login', 'Log in', [], [], []);
 
       expect(output).not.toContain('ARGUMENTS');
     });

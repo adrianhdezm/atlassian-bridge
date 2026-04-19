@@ -21,14 +21,14 @@ export function buildProgram(configDir?: string): Program {
       return credentialStorage.load();
     } catch (err) {
       if (err instanceof AppError) {
-        throw new AppError(`${err.message} — run \`ab auth login\` or set the environment variable`);
+        throw new AppError(`${err.message} — run \`atl auth login\` or set the environment variable`);
       }
       throw err;
     }
   }
 
   const program = new Program();
-  program.name('ab').description('Atlassian Bridge — Jira & Confluence from the terminal').version(version);
+  program.name('atl').description('Atlassian Bridge — Jira & Confluence from the terminal').version(version);
   program.option('-v, --verbose', 'Enable verbose output');
 
   // ── auth ──────────────────────────────────────────────────────

@@ -29,7 +29,7 @@
     "url": "https://github.com/adrianhdezm/atlassian-bridge/issues"
   },
   "bin": {
-    "ab": "dist/main.js"
+    "atl": "dist/main.js"
   },
   "scripts": {
     "dev": "node --import=tsx src/main.ts",

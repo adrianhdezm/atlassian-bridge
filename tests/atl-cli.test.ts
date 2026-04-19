@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { buildProgram } from '../src/ab-cli.js';
+import { buildProgram } from '../src/atl-cli.js';
 import { AppError } from '../src/shared/app-error.js';
 
 // ── SDK mocks ───────────────────────────────────────────────────
@@ -90,7 +90,7 @@ async function run(argv: string[]) {
   };
   process.on('unhandledRejection', handler);
 
-  buildProgram(tmpDir).parse(['node', 'ab', ...argv], writer);
+  buildProgram(tmpDir).parse(['node', 'atl', ...argv], writer);
   await new Promise((r) => setTimeout(r, 0));
 
   process.removeListener('unhandledRejection', handler);
@@ -105,7 +105,7 @@ async function run(argv: string[]) {
 // ── setup / teardown ────────────────────────────────────────────
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ab-cli-test-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'atl-cli-test-'));
   envBackup = {
     ATLASSIAN_BASE_URL: process.env['ATLASSIAN_BASE_URL'],
     ATLASSIAN_EMAIL: process.env['ATLASSIAN_EMAIL'],
@@ -128,7 +128,7 @@ afterEach(() => {
 
 // ── tests ───────────────────────────────────────────────────────
 
-describe('ab-cli', () => {
+describe('atl-cli', () => {
   // ── auth login ──────────────────────────────────────────────
 
   describe('auth login', () => {
@@ -171,7 +171,7 @@ describe('ab-cli', () => {
 
       const { writer } = await run(['auth', 'status']);
 
-      expect(writer).toHaveBeenCalledWith(expect.stringContaining('run `ab auth login`'));
+      expect(writer).toHaveBeenCalledWith(expect.stringContaining('run `atl auth login`'));
     });
   });
 
@@ -213,7 +213,7 @@ describe('ab-cli', () => {
       const { rejection } = await run(['confluence', 'pages', 'get', '123']);
 
       expect(rejection).toBeInstanceOf(AppError);
-      expect((rejection as AppError).message).toContain('run `ab auth login`');
+      expect((rejection as AppError).message).toContain('run `atl auth login`');
     });
   });
 

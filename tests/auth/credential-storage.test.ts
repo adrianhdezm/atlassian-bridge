@@ -19,7 +19,7 @@ describe('credential-storage', () => {
   const savedEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ab-cli-test-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'atl-cli-test-'));
     storage = new CredentialStorage(tmpDir);
 
     for (const key of ['ATLASSIAN_BASE_URL', 'ATLASSIAN_EMAIL', 'ATLASSIAN_API_TOKEN']) {

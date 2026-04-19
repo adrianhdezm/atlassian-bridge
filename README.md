@@ -27,7 +27,7 @@ pnpm dev -- auth login --base-url https://yoursite.atlassian.net --email you@exa
 
 ## Configuration
 
-Credentials can be provided via `ab auth login` or environment variables:
+Credentials can be provided via `atl auth login` or environment variables:
 
 - `ATLASSIAN_BASE_URL` — your Atlassian instance URL
 - `ATLASSIAN_EMAIL` — account email
