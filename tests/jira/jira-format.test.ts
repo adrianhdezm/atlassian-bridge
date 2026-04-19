@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatIssue } from '../../src/jira/jira-format.js';
-import type { Issue } from '../../src/jira/jira-models.js';
+import { formatIssue, formatProject } from '../../src/jira/jira-format.js';
+import type { Issue, Project } from '../../src/jira/jira-models.js';
 
 describe('jira-format', () => {
   describe('formatIssue', () => {
@@ -134,6 +134,81 @@ describe('jira-format', () => {
       const subtask = subtasks[0];
       expect(subtask['key']).toBe('PROJ-2');
       expect(subtask).not.toHaveProperty('self');
+    });
+  });
+
+  describe('formatProject', () => {
+    const baseProject: Project = {
+      id: '1',
+      key: 'PROJ',
+      name: 'Project',
+      projectTypeKey: 'software',
+      self: 'https://example.atlassian.net/rest/api/3/project/1',
+      avatarUrls: { '48x48': 'https://example.com/avatar.png' }
+    };
+
+    it('strips self from project', () => {
+      const result = formatProject(baseProject);
+      expect(result).not.toHaveProperty('self');
+    });
+
+    it('strips avatarUrls from project', () => {
+      const result = formatProject(baseProject);
+      expect(result).not.toHaveProperty('avatarUrls');
+    });
+
+    it('preserves id, key, and name', () => {
+      const result = formatProject(baseProject);
+      expect(result['id']).toBe('1');
+      expect(result['key']).toBe('PROJ');
+      expect(result['name']).toBe('Project');
+    });
+
+    it('preserves extra fields from loose schema', () => {
+      const project = { ...baseProject, style: 'next-gen' } as Project;
+      const result = formatProject(project);
+      expect(result['style']).toBe('next-gen');
+    });
+
+    it('strips expand, simplified, isPrivate, and roles', () => {
+      const project = {
+        ...baseProject,
+        expand: 'description,lead',
+        simplified: false,
+        isPrivate: false,
+        roles: { Developers: 'https://example.com/role/1' }
+      } as Project;
+      const result = formatProject(project);
+      expect(result).not.toHaveProperty('expand');
+      expect(result).not.toHaveProperty('simplified');
+      expect(result).not.toHaveProperty('isPrivate');
+      expect(result).not.toHaveProperty('roles');
+    });
+
+    it('strips projectCategory.description but preserves other fields', () => {
+      const project = {
+        ...baseProject,
+        projectCategory: { id: '1', name: 'Internal', description: 'Internal projects' }
+      } as Project;
+      const result = formatProject(project);
+      const category = result['projectCategory'] as Record<string, unknown>;
+      expect(category['id']).toBe('1');
+      expect(category['name']).toBe('Internal');
+      expect(category).not.toHaveProperty('description');
+    });
+
+    it('strips avatarId from issueTypes array items', () => {
+      const project = {
+        ...baseProject,
+        issueTypes: [
+          { id: '1', name: 'Bug', avatarId: 10303 },
+          { id: '2', name: 'Task', avatarId: 10318 }
+        ]
+      } as Project;
+      const result = formatProject(project);
+      const issueTypes = result['issueTypes'] as Record<string, unknown>[];
+      expect(issueTypes[0]).toEqual({ id: '1', name: 'Bug' });
+      expect(issueTypes[1]).toEqual({ id: '2', name: 'Task' });
     });
   });
 });

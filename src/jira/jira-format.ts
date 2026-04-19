@@ -1,9 +1,9 @@
-import type { Issue } from './jira-models.js';
+import type { Issue, Project } from './jira-models.js';
 import { stripKeys, stripPaths } from '../shared/format-utils.js';
 
 const STRIPPED_KEYS: ReadonlySet<string> = new Set(['self', 'avatarUrls', 'iconUrl']);
 
-const STRIPPED_PATHS: ReadonlyArray<string> = [
+const STRIPPED_ISSUE_PATHS: ReadonlyArray<string> = [
   'expand',
   'fields.issuetype.description',
   'fields.issuetype.avatarId',
@@ -45,6 +45,19 @@ const STRIPPED_PATHS: ReadonlyArray<string> = [
   'transitions.isLooped'
 ];
 
+const STRIPPED_PROJECT_PATHS: ReadonlyArray<string> = [
+  'expand',
+  'simplified',
+  'isPrivate',
+  'roles',
+  'projectCategory.description',
+  'issueTypes.avatarId'
+];
+
 export function formatIssue(issue: Issue): Record<string, unknown> {
-  return stripPaths(stripKeys(issue, STRIPPED_KEYS), STRIPPED_PATHS) as Record<string, unknown>;
+  return stripPaths(stripKeys(issue, STRIPPED_KEYS), STRIPPED_ISSUE_PATHS) as Record<string, unknown>;
+}
+
+export function formatProject(project: Project): Record<string, unknown> {
+  return stripPaths(stripKeys(project, STRIPPED_KEYS), STRIPPED_PROJECT_PATHS) as Record<string, unknown>;
 }

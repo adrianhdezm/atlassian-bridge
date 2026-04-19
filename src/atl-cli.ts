@@ -7,7 +7,7 @@ import { Program } from './cli/program.js';
 import { AppError } from './shared/app-error.js';
 import { CredentialStorage } from './auth/credential-storage.js';
 import { JiraClient } from './jira/jira-client.js';
-import { formatIssue } from './jira/jira-format.js';
+import { formatIssue, formatProject } from './jira/jira-format.js';
 import { ConfluenceClient } from './confluence/confluence-client.js';
 import { formatPage } from './confluence/confluence-format.js';
 import type { Credentials } from './auth/credential-storage.js';
@@ -393,7 +393,7 @@ export function buildProgram(configDir?: string): Program {
       const creds = loadCredentials();
       const client = new JiraClient(creds);
       const result = await client.getProject(args['projectKeyOrId'] as string);
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify(formatProject(result), null, 2));
     });
 
   projects
@@ -411,7 +411,7 @@ export function buildProgram(configDir?: string): Program {
         maxResults: Number(opts['max-results']),
         ...(query !== undefined ? { query } : {})
       });
-      console.log(JSON.stringify(result, null, 2));
+      console.log(JSON.stringify({ ...result, values: result.values.map(formatProject) }, null, 2));
     });
 
   return program;

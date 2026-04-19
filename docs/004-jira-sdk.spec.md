@@ -8,7 +8,7 @@ Thin client for Jira Cloud REST API v3 issue, transition, search, and project op
 src/jira/
 ├── jira-models.ts     Zod schemas + pagination base schemas for API responses (deps: zod)
 ├── jira-client.ts     JiraClient class — auth, issues, transitions, search, projects (deps: jira-models, http-client/fetchJsonObject, http-client/fetchAll, shared/adf-schema)
-└── jira-format.ts     Output formatting — strips noise keys before CLI display (deps: jira-models)
+└── jira-format.ts     Output formatting — strips noise keys/paths before CLI display (deps: jira-models, shared/format-utils)
 ```
 
 ADF schema is shared from `src/shared/adf-schema.ts` — no duplication. Jira validates ADF as an object (not a JSON string), so no `JSON.parse` step is needed.
@@ -446,7 +446,15 @@ Two-pass cleaning via `stripPaths(stripKeys(issue, STRIPPED_KEYS), STRIPPED_PATH
 
 Preserves `null` values and primitives. Returns `Record<string, unknown>`.
 
-Applied in `atl-cli.ts` at the command layer — after fetching, before `JSON.stringify`. Used by: `getIssue`, `updateIssue`, `searchIssues` (maps over `issues` array), and `getChildIssues` (maps over result array). Not applied to `createIssue` (returns `CreatedIssue`, not `Issue`), `getTransitions`, or project commands.
+`formatProject` applies the same `STRIPPED_KEYS` (`self`, `avatarUrls`, `iconUrl`) plus `STRIPPED_PROJECT_PATHS`:
+
+- `expand`, `simplified`, `isPrivate`, `roles`
+- `projectCategory.description`
+- `issueTypes.avatarId` (fans out across array items)
+
+Returns `Record<string, unknown>`.
+
+Applied in `atl-cli.ts` at the command layer — after fetching, before `JSON.stringify`. `formatIssue` is used by: `getIssue`, `updateIssue`, `searchIssues` (maps over `issues` array), and `getChildIssues` (maps over result array). Not applied to `createIssue` (returns `CreatedIssue`, not `Issue`) or `getTransitions`. `formatProject` is used by project commands.
 
 ## Error Handling
 

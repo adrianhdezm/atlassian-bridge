@@ -127,6 +127,16 @@ Actions print results to stdout via `console.log`:
 - **Data operations** — `console.log(JSON.stringify(result, null, 2))`
 - **Void operations** (delete, transition) — `console.log('Done.')`
 
+### Output Formatting
+
+Before serializing to JSON, data operations in the Jira and Confluence namespaces apply format functions to strip noisy API fields from responses:
+
+- **Jira issues** — `formatIssue` (from `jira/jira-format.ts`) applied to: `get`, `update`, `search` (maps over `issues` array), `children` (maps over result array). Not applied to `create` (returns `CreatedIssue`, not `Issue`) or `transitions`.
+- **Jira projects** — `formatProject` (from `jira/jira-format.ts`) applied to: `get`, `list` (maps over `values` array, preserving the pagination envelope).
+- **Confluence pages** — `formatPage` (from `confluence/confluence-format.ts`) applied to: `get`, `create`, `update`, `list` (maps over `results` array, preserving the pagination envelope's `_links.next` cursor).
+
+See `004-jira-sdk.spec.md` and `003-confluence-sdk.spec.md` for the full list of stripped keys and paths.
+
 ## Async Error Handling
 
 Most actions are async (SDK calls return promises). Auth actions (`login`, `status`, `logout`) are synchronous since credential storage is file-based. The framework fires actions with `void action(...)` (fire-and-forget), so `main.ts` registers a global `unhandledRejection` handler before calling `parse()`. This handler catches HTTP errors, Zod validation errors, and missing env var errors uniformly. Because it lives in `main.ts`, it never runs when tests import `buildProgram` from `atl-cli.ts`.
