@@ -21,19 +21,31 @@ export function stripPaths(value: unknown, paths: ReadonlyArray<string>): unknow
 
   const current = structuredClone(value);
   for (const path of paths) {
-    const segments = path.split('.');
-    const last = segments.pop()!;
-    let target: unknown = current;
-    for (const segment of segments) {
-      if (typeof target !== 'object' || target === null) {
-        target = undefined;
-        break;
-      }
-      target = (target as Record<string, unknown>)[segment];
-    }
-    if (typeof target === 'object' && target !== null) {
-      delete (target as Record<string, unknown>)[last];
-    }
+    removePath(current, path.split('.'));
   }
   return current;
+}
+
+function removePath(target: unknown, segments: string[]): void {
+  if (segments.length === 0 || target === null || target === undefined) {
+    return;
+  }
+
+  if (Array.isArray(target)) {
+    for (const item of target) {
+      removePath(item, segments);
+    }
+    return;
+  }
+
+  if (typeof target !== 'object') {
+    return;
+  }
+
+  const [head, ...rest] = segments;
+  if (rest.length === 0) {
+    delete (target as Record<string, unknown>)[head!];
+  } else {
+    removePath((target as Record<string, unknown>)[head!], rest);
+  }
 }

@@ -103,5 +103,73 @@ describe('format-utils', () => {
       const input = { id: '1', name: 'Test' };
       expect(stripPaths(input, [])).toEqual({ id: '1', name: 'Test' });
     });
+
+    it('fans out across array items', () => {
+      const input = {
+        fields: {
+          components: [
+            { id: '1', name: 'UI', description: 'Frontend' },
+            { id: '2', name: 'API', description: 'Backend' }
+          ]
+        }
+      };
+      expect(stripPaths(input, ['fields.components.description'])).toEqual({
+        fields: {
+          components: [
+            { id: '1', name: 'UI' },
+            { id: '2', name: 'API' }
+          ]
+        }
+      });
+    });
+
+    it('fans out across nested arrays', () => {
+      const input = {
+        groups: [
+          {
+            items: [
+              { id: '1', meta: 'x' },
+              { id: '2', meta: 'y' }
+            ]
+          },
+          { items: [{ id: '3', meta: 'z' }] }
+        ]
+      };
+      expect(stripPaths(input, ['groups.items.meta'])).toEqual({
+        groups: [{ items: [{ id: '1' }, { id: '2' }] }, { items: [{ id: '3' }] }]
+      });
+    });
+
+    it('skips array items that lack the target path', () => {
+      const input = {
+        fields: {
+          components: [{ id: '1', name: 'UI', description: 'Frontend' }, { id: '2', name: 'API' }, 'not-an-object', null]
+        }
+      };
+      expect(stripPaths(input, ['fields.components.description'])).toEqual({
+        fields: {
+          components: [{ id: '1', name: 'UI' }, { id: '2', name: 'API' }, 'not-an-object', null]
+        }
+      });
+    });
+
+    it('handles mixed array and object nesting', () => {
+      const input = {
+        fields: {
+          issuelinks: [
+            { type: { id: '1', description: 'blocks' }, inwardIssue: { key: 'A-1', self: 'url' } },
+            { type: { id: '2', description: 'relates' }, inwardIssue: { key: 'A-2', self: 'url' } }
+          ]
+        }
+      };
+      expect(stripPaths(input, ['fields.issuelinks.type.description', 'fields.issuelinks.inwardIssue.self'])).toEqual({
+        fields: {
+          issuelinks: [
+            { type: { id: '1' }, inwardIssue: { key: 'A-1' } },
+            { type: { id: '2' }, inwardIssue: { key: 'A-2' } }
+          ]
+        }
+      });
+    });
   });
 });

@@ -61,7 +61,7 @@ Removes values at specific dot-separated paths from an object.
 export function stripPaths(value: unknown, paths: ReadonlyArray<string>): unknown;
 ```
 
-Deep-clones the input, then walks each dot-separated path (e.g. `'fields.issuetype.description'`) and deletes the final key. Silently ignores paths that don't exist or where an intermediate segment is not an object. Preserves primitives, `null`, and `undefined` unchanged. Complements `stripKeys` — use `stripKeys` for global key removal and `stripPaths` for targeted path removal.
+Deep-clones the input, then walks each dot-separated path (e.g. `'fields.issuetype.description'`) and deletes the final key. When a segment resolves to an array, the remaining path is applied to every element (e.g. `'fields.components.description'` strips `description` from all items in the `components` array). Silently ignores paths that don't exist or where an intermediate segment is not an object. Preserves primitives, `null`, and `undefined` unchanged. Complements `stripKeys` — use `stripKeys` for global key removal and `stripPaths` for targeted path removal.
 
 ## Conventions
 
