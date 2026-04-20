@@ -264,6 +264,7 @@ interface CreateIssueAttrs {
 interface UpdateIssueAttrs {
   summary?: string;
   description?: object; // ADF document object
+  parentKey?: string;
   labels?: string[];
 }
 
@@ -329,12 +330,13 @@ Request body sent to API:
   "fields": {
     "summary": "Updated title",
     "description": { "version": 1, "type": "doc", "content": [...] },
+    "parent": { "key": "PROJ-10" },
     "labels": ["frontend"]
   }
 }
 ```
 
-Only includes fields that are provided in `UpdateIssueAttrs` — partial update. Validates `description` against `AdfSchema` when provided. Returns the full updated `Issue` — uses `fetchJsonObject` with `IssueSchema`, enabled by the `returnIssue=true` query parameter.
+Only includes fields that are provided in `UpdateIssueAttrs` — partial update. Validates `description` against `AdfSchema` when provided. Wraps `parentKey` as `{ key }` (same as `createIssue`). Returns the full updated `Issue` — uses `fetchJsonObject` with `IssueSchema`, enabled by the `returnIssue=true` query parameter.
 
 ### deleteIssue
 
@@ -462,4 +464,4 @@ Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additi
 
 ## Testing
 
-Tests in `tests/jira/jira-client.test.ts` and `tests/jira/jira-format.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).
+Tests in `tests/jira/jira-client.test.ts` and `tests/jira/jira-format.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, parent key wrapping, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).

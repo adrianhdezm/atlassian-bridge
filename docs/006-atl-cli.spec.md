@@ -20,7 +20,7 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | `confluence` | `spaces`   | `tree`        | `<spaceIdOrKey>`              | `--depth`                                                                          |
 | `jira`       | `issues`   | `get`         | `<issueKey>`                  | —                                                                                  |
 | `jira`       | `issues`   | `create`      | `<summary>`                   | `--project` **(req)**, `--type` **(req)**, `--description`, `--parent`, `--labels` |
-| `jira`       | `issues`   | `update`      | `<issueKey>`                  | `--summary`, `--description`, `--labels`                                           |
+| `jira`       | `issues`   | `update`      | `<issueKey>`                  | `--summary`, `--description`, `--parent`, `--labels`                               |
 | `jira`       | `issues`   | `delete`      | `<issueKey>`                  | —                                                                                  |
 | `jira`       | `issues`   | `transitions` | `<issueKey>`                  | —                                                                                  |
 | `jira`       | `issues`   | `transition`  | `<issueKey>` `<transitionId>` | —                                                                                  |
@@ -413,11 +413,12 @@ atl jira issues update <issueKey> [flags]
 | --------------------- | ------------------------- |
 | `--summary <text>`    | New summary               |
 | `--description <adf>` | ADF JSON object as string |
+| `--parent <key>`      | Parent issue key          |
 | `--labels <labels>`   | Comma-separated labels    |
 
-Same `--description` parse and `--labels` split behavior as `create`.
+Same `--description` parse, `--labels` split, and `--parent` behavior as `create`.
 
-SDK: `updateIssue(issueKey, { summary, description, labels })` → prints the updated issue as JSON
+SDK: `updateIssue(issueKey, { summary, description, parentKey, labels })` → prints the updated issue as JSON
 
 #### `delete <issueKey>`
 
@@ -556,7 +557,7 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 | `confluence spaces get`                      | SDK delegation, space ID or key                                                |
 | `confluence spaces tree`                     | SDK delegation, depth option                                                   |
 | `jira issues create`                         | Required `--project`/`--type`, `JSON.parse` on description, comma-split labels |
-| `jira issues update`                         | Partial update, description parse                                              |
+| `jira issues update`                         | Partial update, description parse, parent key forwarding                       |
 | `jira issues delete/transitions/transition`  | SDK delegation, "Done" output                                                  |
 | `jira issues search`                         | JQL string, pagination params, comma-split fields                              |
 | `jira issues children`                       | Auto-pagination delegation                                                     |

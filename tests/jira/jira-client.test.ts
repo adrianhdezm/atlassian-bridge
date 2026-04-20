@@ -322,6 +322,7 @@ describe('jira-client', () => {
       const fields = body['fields'] as Record<string, unknown>;
       expect(fields['summary']).toBe('Updated title');
       expect(fields['description']).toBeUndefined();
+      expect(fields['parent']).toBeUndefined();
       expect(fields['labels']).toBeUndefined();
     });
 
@@ -331,12 +332,18 @@ describe('jira-client', () => {
       });
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(updated));
 
-      await client.updateIssue('PROJ-1', { summary: 'New title', description: validAdf, labels: ['backend', 'urgent'] });
+      await client.updateIssue('PROJ-1', {
+        summary: 'New title',
+        description: validAdf,
+        parentKey: 'PROJ-10',
+        labels: ['backend', 'urgent']
+      });
 
       const body = JSON.parse(fetchSpy.mock.calls[0][1]!.body as string) as Record<string, unknown>;
       const fields = body['fields'] as Record<string, unknown>;
       expect(fields['summary']).toBe('New title');
       expect(fields['description']).toEqual(validAdf);
+      expect(fields['parent']).toEqual({ key: 'PROJ-10' });
       expect(fields['labels']).toEqual(['backend', 'urgent']);
     });
 

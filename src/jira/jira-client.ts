@@ -33,6 +33,7 @@ export interface CreateIssueAttrs {
 export interface UpdateIssueAttrs {
   summary?: string;
   description?: object;
+  parentKey?: string;
   labels?: string[];
 }
 
@@ -138,6 +139,9 @@ export class JiraClient {
     }
     if (input.labels !== undefined) {
       fields['labels'] = input.labels;
+    }
+    if (input.parentKey !== undefined) {
+      fields['parent'] = { key: input.parentKey };
     }
 
     return fetchJsonObject(IssueSchema, `${this.apiUrl}/issue/${issueIdOrKey}?returnIssue=true`, {

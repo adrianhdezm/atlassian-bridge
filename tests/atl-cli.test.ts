@@ -459,11 +459,25 @@ describe('atl-cli', () => {
       mockJira.updateIssue.mockResolvedValue({ id: '1', key: 'PROJ-1', fields: { summary: 'New' } });
       const desc = '{"type":"doc","content":[]}';
 
-      const { logs } = await run(['jira', 'issues', 'update', 'PROJ-1', '--summary', 'New', '--description', desc, '--labels', 'a,b']);
+      const { logs } = await run([
+        'jira',
+        'issues',
+        'update',
+        'PROJ-1',
+        '--summary',
+        'New',
+        '--description',
+        desc,
+        '--parent',
+        'PROJ-10',
+        '--labels',
+        'a,b'
+      ]);
 
       expect(mockJira.updateIssue).toHaveBeenCalledWith('PROJ-1', {
         summary: 'New',
         description: JSON.parse(desc) as object,
+        parentKey: 'PROJ-10',
         labels: ['a', 'b']
       });
       expect(logs[0]).toContain('"key": "PROJ-1"');

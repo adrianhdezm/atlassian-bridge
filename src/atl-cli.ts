@@ -300,16 +300,19 @@ export function buildProgram(configDir?: string): Program {
     .argument('<issueKey>', 'Issue key')
     .option('--summary <text>', 'New summary')
     .option('--description <adf>', 'ADF JSON object as string')
+    .option('--parent <key>', 'Parent issue key')
     .option('--labels <labels>', 'Comma-separated labels')
     .action(async (args, opts) => {
       const creds = loadCredentials();
       const client = new JiraClient(creds);
       const summary = opts['summary'] as string | undefined;
       const description = opts['description'] as string | undefined;
+      const parent = opts['parent'] as string | undefined;
       const labels = opts['labels'] as string | undefined;
       const result = await client.updateIssue(args['issueKey'] as string, {
         ...(summary !== undefined ? { summary } : {}),
         ...(description !== undefined ? { description: JSON.parse(description) as object } : {}),
+        ...(parent !== undefined ? { parentKey: parent } : {}),
         ...(labels !== undefined ? { labels: labels.split(',') } : {})
       });
       console.log(JSON.stringify(formatIssue(result), null, 2));
