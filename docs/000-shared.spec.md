@@ -7,8 +7,7 @@ Cross-domain models that live in `src/shared/`. No internal dependencies between
 ```
 src/shared/
 ├── app-error.ts       AppError class (zero deps)
-├── adf-schema.ts      Zod schema for Atlassian Document Format (deps: zod, adf-schema.json)
-├── adf-schema.json    ADF JSON Schema source
+├── adf-schema.ts      Hand-written Zod schema for Atlassian Document Format (deps: zod)
 └── format-utils.ts    Recursive key/path-stripping utilities for output formatting (zero deps)
 ```
 
@@ -27,19 +26,17 @@ export class AppError extends Error {
 
 ## AdfSchema
 
-Zod schema derived from the vendored [ADF JSON Schema v1](https://unpkg.com/@atlaskit/adf-schema@52.5.0/dist/json-schema/v1/full.json) via `z.fromJSONSchema()`. Validates Atlassian Document Format bodies before sending them to the API.
+Hand-written Zod schema that validates Atlassian Document Format bodies before sending them to the API. Replaces a previous `z.fromJSONSchema()` approach that silently broke type discriminators on the vendored ADF JSON Schema.
 
-```ts
-import adfJsonSchema from './adf-schema.json' with { type: 'json' };
-import type { JSONSchema } from 'zod/v4/core';
-import { z } from 'zod';
+The schema validates:
 
-export const AdfSchema = z.fromJSONSchema(adfJsonSchema as JSONSchema.JSONSchema);
-```
+- **Document envelope**: `version: 1`, `type: "doc"`, `content` array
+- **Node types**: every node must have a recognized `type` (43 known ADF node types)
+- **Text nodes**: must include a `text` string field
+- **Marks**: must have a recognized `type` (16 known mark types)
+- **Recursive content**: nested `content` arrays validated via `z.lazy()`
 
-The `as JSONSchema.JSONSchema` cast is required because `resolveJsonModule` widens string literals (e.g. `$schema`) to `string`, which doesn't satisfy Zod's literal union. `satisfies` cannot be used here.
-
-`z.fromJSONSchema()` can be lossy with deeply nested `anyOf`/`$ref` structures. `tests/shared/adf-schema.test.ts` verifies the conversion handles complex ADF node types (emoji, status, mediaSingle, annotation marks, tables, expand) correctly.
+Uses `z.looseObject()` throughout so extra fields (e.g. `localId`, `style`) from real Confluence/Jira content pass through without rejection.
 
 ## Format Utils
 

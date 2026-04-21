@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { AdfSchema } from '../../src/shared/adf-schema.js';
 
-// z.fromJSONSchema() can be lossy with deeply nested anyOf/$ref — these tests verify the conversion handles the full ADF spec
 describe('adf-schema', () => {
   describe('AdfSchema', () => {
     describe('valid documents', () => {
@@ -151,6 +150,56 @@ describe('adf-schema', () => {
         };
         expect(() => AdfSchema.parse(doc)).not.toThrow();
       });
+
+      it('accepts bulletList and orderedList with nested content', () => {
+        const doc = {
+          version: 1,
+          type: 'doc',
+          content: [
+            {
+              type: 'bulletList',
+              content: [
+                {
+                  type: 'listItem',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'bullet' }] }]
+                }
+              ]
+            },
+            {
+              type: 'orderedList',
+              attrs: { order: 1 },
+              content: [
+                {
+                  type: 'listItem',
+                  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'numbered' }] }]
+                }
+              ]
+            }
+          ]
+        };
+        expect(() => AdfSchema.parse(doc)).not.toThrow();
+      });
+
+      it('preserves extra fields like localId on passthrough', () => {
+        const doc = {
+          version: 1,
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              attrs: { localId: 'abc-123' },
+              content: [{ type: 'text', text: 'hello' }]
+            }
+          ]
+        };
+        const result = AdfSchema.parse(doc);
+        expect((result.content[0] as Record<string, unknown>).attrs).toEqual({ localId: 'abc-123' });
+      });
+
+      it('accepts an empty document', () => {
+        const doc = { version: 1, type: 'doc', content: [] };
+        expect(() => AdfSchema.parse(doc)).not.toThrow();
+      });
     });
 
     describe('invalid documents', () => {
@@ -171,13 +220,33 @@ describe('adf-schema', () => {
         expect(() => AdfSchema.parse(doc)).toThrow(z.ZodError);
       });
 
-      it('rejects an emoji node missing required attrs', () => {
+      it('rejects a text node missing the text field', () => {
         const doc = {
           version: 1,
           type: 'doc',
-          content: [{ type: 'paragraph', content: [{ type: 'emoji' }] }]
+          content: [{ type: 'paragraph', content: [{ type: 'text' }] }]
         };
         expect(() => AdfSchema.parse(doc)).toThrow(z.ZodError);
+      });
+
+      it('rejects a node with an unknown mark type', () => {
+        const doc = {
+          version: 1,
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'bad', marks: [{ type: 'madeUpMark' }] }]
+            }
+          ]
+        };
+        expect(() => AdfSchema.parse(doc)).toThrow(z.ZodError);
+      });
+
+      it('rejects a non-object as document', () => {
+        expect(() => AdfSchema.parse('not an object')).toThrow(z.ZodError);
+        expect(() => AdfSchema.parse(null)).toThrow(z.ZodError);
+        expect(() => AdfSchema.parse(42)).toThrow(z.ZodError);
       });
     });
   });
