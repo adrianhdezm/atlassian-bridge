@@ -21,7 +21,7 @@ pnpm dev -- <command>
 
 # Examples
 pnpm dev -- jira issues search "project = PROJ"
-pnpm dev -- confluence pages list --space SPACE_KEY
+pnpm dev -- confluence pages search "space = SPACE_KEY"
 pnpm dev -- auth login --base-url https://yoursite.atlassian.net --email you@example.com --token YOUR_TOKEN
 ```
 

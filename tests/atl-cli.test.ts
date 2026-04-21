@@ -217,46 +217,6 @@ describe('atl-cli', () => {
     });
   });
 
-  // ── confluence pages list ───────────────────────────────────
-
-  describe('confluence pages list', () => {
-    it('forwards default options', async () => {
-      mockConfluence.getPages.mockResolvedValue({ results: [] });
-
-      await run(['confluence', 'pages', 'list']);
-
-      expect(mockConfluence.getPages).toHaveBeenCalledWith(expect.objectContaining({ limit: 25 }));
-    });
-
-    it('forwards all query params', async () => {
-      mockConfluence.getPages.mockResolvedValue({ results: [] });
-
-      await run([
-        'confluence',
-        'pages',
-        'list',
-        '--space',
-        'DEV',
-        '--title',
-        'Test',
-        '--status',
-        'current',
-        '--limit',
-        '10',
-        '--cursor',
-        'abc'
-      ]);
-
-      expect(mockConfluence.getPages).toHaveBeenCalledWith({
-        spaceIdOrKey: 'DEV',
-        title: 'Test',
-        status: 'current',
-        limit: 10,
-        cursor: 'abc'
-      });
-    });
-  });
-
   // ── confluence pages create ─────────────────────────────────
 
   describe('confluence pages create', () => {

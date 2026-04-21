@@ -92,31 +92,6 @@ export function buildProgram(configDir?: string): Program {
     });
 
   pages
-    .subcommand('list')
-    .description('List pages')
-    .option('--space <id>', 'Filter by space ID or key')
-    .option('--title <title>', 'Filter by title')
-    .option('--status <status>', 'Filter by status')
-    .option('--limit <n>', 'Max results', '25')
-    .option('--cursor <cursor>', 'Pagination cursor')
-    .action(async (_args, opts) => {
-      const creds = loadCredentials();
-      const client = new ConfluenceClient(creds);
-      const space = opts['space'] as string | undefined;
-      const title = opts['title'] as string | undefined;
-      const status = opts['status'] as string | undefined;
-      const cursor = opts['cursor'] as string | undefined;
-      const result = await client.getPages({
-        ...(space !== undefined ? { spaceIdOrKey: space } : {}),
-        ...(title !== undefined ? { title } : {}),
-        ...(status !== undefined ? { status } : {}),
-        limit: Number(opts['limit']),
-        ...(cursor !== undefined ? { cursor } : {})
-      });
-      console.log(JSON.stringify({ ...result, results: result.results.map(formatPage) }, null, 2));
-    });
-
-  pages
     .subcommand('create')
     .description('Create a new page')
     .argument('<title>', 'Page title')

@@ -10,7 +10,6 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | —            | `auth`     | `status`   | —                  | —                                                                                  |
 | —            | `auth`     | `logout`   | —                  | —                                                                                  |
 | `confluence` | `pages`    | `get`      | `<pageId>`         | —                                                                                  |
-| `confluence` | `pages`    | `list`     | —                  | `--space`, `--title`, `--status`, `--limit`, `--cursor`                            |
 | `confluence` | `pages`    | `create`   | `<title>`          | `--space` **(req)**, `--parent`, `--body`                                          |
 | `confluence` | `pages`    | `update`   | `<pageId>`         | `--title`, `--body`, `--parent`                                                    |
 | `confluence` | `pages`    | `delete`   | `<pageId>`         | —                                                                                  |
@@ -131,7 +130,7 @@ Before serializing to JSON, data operations in the Jira and Confluence namespace
 
 - **Jira issues** — `formatIssue` (from `jira/jira-format.ts`) applied to: `get`, `update`, `search` (maps over `issues` array), `children` (maps over result array). Not applied to `create` (returns `CreatedIssue`, not `Issue`) or `transitions`.
 - **Jira projects** — `formatProject` (from `jira/jira-format.ts`) applied to: `get`, `list` (maps over `values` array, preserving the pagination envelope).
-- **Confluence pages** — `formatPage` (from `confluence/confluence-format.ts`) applied to: `get`, `create`, `update`, `list` (maps over `results` array, preserving the pagination envelope's `_links.next` cursor).
+- **Confluence pages** — `formatPage` (from `confluence/confluence-format.ts`) applied to: `get`, `create`, `update`.
 - **Confluence spaces** — `formatSpace` (from `confluence/confluence-format.ts`) applied to: `get`. Not applied to `tree` (returns pages, not spaces).
 
 See `004-jira-sdk.spec.md` and `003-confluence-sdk.spec.md` for the full list of stripped keys and paths.
@@ -229,24 +228,6 @@ pages
 ```
 
 SDK: `getPage(pageId)`
-
-#### `list`
-
-List pages with optional filters.
-
-```
-atl confluence pages list [flags]
-```
-
-| Flag                | Description               | Default |
-| ------------------- | ------------------------- | ------- |
-| `--space <id>`      | Filter by space ID or key | —       |
-| `--title <title>`   | Filter by title           | —       |
-| `--status <status>` | Filter by status          | —       |
-| `--limit <n>`       | Max results               | `25`    |
-| `--cursor <cursor>` | Pagination cursor         | —       |
-
-SDK: `getPages({ spaceIdOrKey, title, status, limit, cursor })`
 
 #### `create <title>`
 
@@ -542,7 +523,6 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 | `auth status`                             | Displays masked token, throws when unconfigured                                                                                                                                                                 |
 | `auth logout`                             | Removes file, handles missing file                                                                                                                                                                              |
 | `confluence pages get`                    | Credential loading + remediation hint, SDK delegation                                                                                                                                                           |
-| `confluence pages list`                   | Default options, query param forwarding                                                                                                                                                                         |
 | `confluence pages create`                 | Required `--space` enforcement                                                                                                                                                                                  |
 | `confluence pages update`                 | Fetches current values when flags omitted                                                                                                                                                                       |
 | `confluence pages delete/children/search` | SDK delegation, option forwarding                                                                                                                                                                               |
