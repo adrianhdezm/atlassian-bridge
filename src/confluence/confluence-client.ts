@@ -235,6 +235,24 @@ export class ConfluenceClient {
     return allPages;
   }
 
+  async resolvePageId(pageIdOrTitle: string, space?: string): Promise<string> {
+    if (/^\d+$/.test(pageIdOrTitle)) return pageIdOrTitle;
+
+    let cql = `title = "${pageIdOrTitle}"`;
+    if (space !== undefined) {
+      cql += ` AND space = "${space}"`;
+    }
+    const search = await this.searchPages({ cql });
+    if (search.results.length === 0) {
+      throw new AppError(`No page found with title "${pageIdOrTitle}"`);
+    }
+    if (search.results.length > 1) {
+      const matches = search.results.map((r) => `  ${r.id}: ${r.title}`).join('\n');
+      throw new AppError(`Multiple pages match title "${pageIdOrTitle}":\n${matches}\nUse --space to narrow or use the page ID`);
+    }
+    return search.results[0]!.id;
+  }
+
   private async resolveSpaceId(spaceIdOrKey: string): Promise<string> {
     if (/^\d+$/.test(spaceIdOrKey)) {
       return spaceIdOrKey;

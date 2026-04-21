@@ -13,7 +13,7 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | `confluence` | `pages`    | `create`   | `<title>`          | `--space` **(req)**, `--parent`, `--body`                                          |
 | `confluence` | `pages`    | `update`   | `<pageId>`         | `--title`, `--body`, `--parent`                                                    |
 | `confluence` | `pages`    | `delete`   | `<pageId>`         | —                                                                                  |
-| `confluence` | `pages`    | `children` | `<pageId>`         | `--depth`                                                                          |
+| `confluence` | `pages`    | `children` | `<pageIdOrTitle>`  | `--space`, `--depth`                                                               |
 | `confluence` | `pages`    | `search`   | `<cql>`            | `--limit`, `--cursor`                                                              |
 | `confluence` | `spaces`   | `get`      | `<spaceIdOrKey>`   | —                                                                                  |
 | `confluence` | `spaces`   | `tree`     | `<spaceIdOrKey>`   | `--depth`                                                                          |
@@ -206,12 +206,12 @@ Calls `CredentialStorage.clear()`. Prints `"Credentials removed."` if the file e
 const pages = confluence.command('pages').description('Manage pages');
 ```
 
-#### `get <pageId>`
+#### `get <pageIdOrTitle>`
 
-Fetch a single page by ID.
+Fetch a single page by ID or title.
 
 ```
-atl confluence pages get <pageId>
+atl confluence pages get <pageIdOrTitle> [flags]
 ```
 
 ```ts
@@ -223,13 +223,13 @@ pages
   .action(async (args, opts) => { ... });
 ```
 
-If the argument is all digits, it is treated as a page ID and fetches directly via `getPage(id)`. Otherwise, it performs a CQL title search. If `--space` is provided, the CQL is scoped: `title = "X" AND space = "KEY"`. Exactly one result is required — zero results throws an error, and multiple matches lists them so the user can refine with `--space` or use the page ID directly.
+If the argument is all digits, it is treated as a page ID and fetches directly via `getPage(id)`. Otherwise, it performs a CQL title search via the shared `resolvePageId` helper (also used by `children`). If `--space` is provided, the CQL is scoped: `title = "X" AND space = "KEY"`. Exactly one result is required — zero results throws an error, and multiple matches lists them so the user can refine with `--space` or use the page ID directly.
 
 | Flag           | Description                            |
 | -------------- | -------------------------------------- |
 | `--space <id>` | Space ID or key (narrows title search) |
 
-SDK: `searchPages({ cql })` → `getPage(pageId)`
+SDK: `resolvePageId(pageIdOrTitle, space)` → `getPage(pageId)`
 
 #### `create <title>`
 
@@ -277,19 +277,22 @@ atl confluence pages delete <pageId>
 
 SDK: `deletePage(pageId)` → prints `"Done."`
 
-#### `children <pageId>`
+#### `children <pageIdOrTitle>`
 
 Fetch child pages as a flat list. Auto-paginates internally.
 
 ```
-atl confluence pages children <pageId> [flags]
+atl confluence pages children <pageIdOrTitle> [flags]
 ```
 
-| Flag          | Description | Default |
-| ------------- | ----------- | ------- |
-| `--depth <n>` | Tree depth  | `5`     |
+If the argument is all digits, it is treated as a page ID and passed directly to `getDescendants`. Otherwise, it performs a CQL title search (same resolution as `get`). If `--space` is provided, the CQL is scoped. Exactly one result is required.
 
-SDK: `getDescendants(pageId, { depth, limit })`
+| Flag           | Description                            | Default |
+| -------------- | -------------------------------------- | ------- |
+| `--space <id>` | Space ID or key (narrows title search) | —       |
+| `--depth <n>`  | Tree depth                             | `5`     |
+
+SDK: `resolvePageId(pageIdOrTitle, space)` → `getDescendants(pageId, { depth, limit })`
 
 #### `search <cql>`
 
@@ -518,21 +521,23 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 
 ### Coverage
 
-| Command path                              | Key cases                                                                                                                                                                                                       |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth login`                              | Saves credentials, throws on missing flags                                                                                                                                                                      |
-| `auth status`                             | Displays masked token, throws when unconfigured                                                                                                                                                                 |
-| `auth logout`                             | Removes file, handles missing file                                                                                                                                                                              |
-| `confluence pages get`                    | Credential loading + remediation hint, SDK delegation                                                                                                                                                           |
-| `confluence pages create`                 | Required `--space` enforcement                                                                                                                                                                                  |
-| `confluence pages update`                 | Fetches current values when flags omitted                                                                                                                                                                       |
-| `confluence pages delete/children/search` | SDK delegation, option forwarding                                                                                                                                                                               |
-| `confluence spaces get`                   | SDK delegation, space ID or key                                                                                                                                                                                 |
-| `confluence spaces tree`                  | SDK delegation, depth option                                                                                                                                                                                    |
-| `jira issues create`                      | Required `--project`/`--type`, `JSON.parse` on description, comma-split labels                                                                                                                                  |
-| `jira issues update`                      | Partial update, description parse, parent key forwarding, `--status` transition resolution (name→ID via `getIssue` transitions, case-insensitive first match, `AppError` on no match, transition before update) |
-| `jira issues delete`                      | SDK delegation, "Done" output                                                                                                                                                                                   |
-| `jira issues search`                      | JQL string, pagination params, comma-split fields                                                                                                                                                               |
-| `jira issues children`                    | Auto-pagination delegation                                                                                                                                                                                      |
-| `jira projects get`                       | SDK delegation, project key or ID                                                                                                                                                                               |
-| `jira projects list`                      | Default options, query filter                                                                                                                                                                                   |
+| Command path                | Key cases                                                                                                                                                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth login`                | Saves credentials, throws on missing flags                                                                                                                                                                      |
+| `auth status`               | Displays masked token, throws when unconfigured                                                                                                                                                                 |
+| `auth logout`               | Removes file, handles missing file                                                                                                                                                                              |
+| `confluence pages get`      | Fetch by numeric ID, title search, `--space` scoping, zero/multiple match errors, credential loading + remediation hint                                                                                         |
+| `confluence pages create`   | Required `--space` enforcement                                                                                                                                                                                  |
+| `confluence pages update`   | Fetches current values when flags omitted                                                                                                                                                                       |
+| `confluence pages delete`   | SDK delegation, "Done" output                                                                                                                                                                                   |
+| `confluence pages children` | Fetch by numeric ID, title search, `--space` scoping, zero/multiple match errors, depth option forwarding                                                                                                       |
+| `confluence pages search`   | SDK delegation, option forwarding                                                                                                                                                                               |
+| `confluence spaces get`     | SDK delegation, space ID or key                                                                                                                                                                                 |
+| `confluence spaces tree`    | SDK delegation, depth option                                                                                                                                                                                    |
+| `jira issues create`        | Required `--project`/`--type`, `JSON.parse` on description, comma-split labels                                                                                                                                  |
+| `jira issues update`        | Partial update, description parse, parent key forwarding, `--status` transition resolution (name→ID via `getIssue` transitions, case-insensitive first match, `AppError` on no match, transition before update) |
+| `jira issues delete`        | SDK delegation, "Done" output                                                                                                                                                                                   |
+| `jira issues search`        | JQL string, pagination params, comma-split fields                                                                                                                                                               |
+| `jira issues children`      | Auto-pagination delegation                                                                                                                                                                                      |
+| `jira projects get`         | SDK delegation, project key or ID                                                                                                                                                                               |
+| `jira projects list`        | Default options, query filter                                                                                                                                                                                   |

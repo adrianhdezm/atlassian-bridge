@@ -16,6 +16,7 @@ const { mockConfluence, mockJira } = vi.hoisted(() => ({
     deletePage: vi.fn(),
     getDescendants: vi.fn(),
     searchPages: vi.fn(),
+    resolvePageId: vi.fn(),
     getSpace: vi.fn(),
     getSpaceTree: vi.fn()
   },
@@ -42,6 +43,7 @@ vi.mock('../src/confluence/confluence-client.js', () => ({
     deletePage = mockConfluence.deletePage;
     getDescendants = mockConfluence.getDescendants;
     searchPages = mockConfluence.searchPages;
+    resolvePageId = mockConfluence.resolvePageId;
     getSpace = mockConfluence.getSpace;
     getSpaceTree = mockConfluence.getSpaceTree;
   }
@@ -199,56 +201,42 @@ describe('atl-cli', () => {
 
   describe('confluence pages get', () => {
     it('fetches by ID when argument is numeric', async () => {
+      mockConfluence.resolvePageId.mockResolvedValue('123');
       mockConfluence.getPage.mockResolvedValue({ id: '123', title: 'Hello' });
 
       const { logs } = await run(['confluence', 'pages', 'get', '123']);
 
+      expect(mockConfluence.resolvePageId).toHaveBeenCalledWith('123', undefined);
       expect(mockConfluence.getPage).toHaveBeenCalledWith('123');
-      expect(mockConfluence.searchPages).not.toHaveBeenCalled();
       expect(logs[0]).toContain('"id": "123"');
     });
 
-    it('searches by title when argument is not numeric', async () => {
-      mockConfluence.searchPages.mockResolvedValue({ results: [{ id: '42', title: 'My Page', excerpt: '', url: '' }] });
+    it('resolves title via resolvePageId when argument is not numeric', async () => {
+      mockConfluence.resolvePageId.mockResolvedValue('42');
       mockConfluence.getPage.mockResolvedValue({ id: '42', title: 'My Page' });
 
       await run(['confluence', 'pages', 'get', 'My Page']);
 
-      expect(mockConfluence.searchPages).toHaveBeenCalledWith({ cql: 'title = "My Page"' });
+      expect(mockConfluence.resolvePageId).toHaveBeenCalledWith('My Page', undefined);
       expect(mockConfluence.getPage).toHaveBeenCalledWith('42');
     });
 
-    it('scopes CQL to space when --space is provided', async () => {
-      mockConfluence.searchPages.mockResolvedValue({ results: [{ id: '42', title: 'My Page', excerpt: '', url: '' }] });
+    it('passes --space to resolvePageId', async () => {
+      mockConfluence.resolvePageId.mockResolvedValue('42');
       mockConfluence.getPage.mockResolvedValue({ id: '42', title: 'My Page' });
 
       await run(['confluence', 'pages', 'get', 'My Page', '--space', 'DEV']);
 
-      expect(mockConfluence.searchPages).toHaveBeenCalledWith({ cql: 'title = "My Page" AND space = "DEV"' });
+      expect(mockConfluence.resolvePageId).toHaveBeenCalledWith('My Page', 'DEV');
     });
 
-    it('throws when no pages match title', async () => {
-      mockConfluence.searchPages.mockResolvedValue({ results: [] });
+    it('propagates resolvePageId errors', async () => {
+      mockConfluence.resolvePageId.mockRejectedValue(new AppError('No page found with title "Missing"'));
 
       const { rejection } = await run(['confluence', 'pages', 'get', 'Missing']);
 
       expect(rejection).toBeInstanceOf(AppError);
       expect((rejection as AppError).message).toContain('No page found with title "Missing"');
-    });
-
-    it('throws when multiple pages match title', async () => {
-      mockConfluence.searchPages.mockResolvedValue({
-        results: [
-          { id: '1', title: 'Dup', excerpt: '', url: '' },
-          { id: '2', title: 'Dup', excerpt: '', url: '' }
-        ]
-      });
-
-      const { rejection } = await run(['confluence', 'pages', 'get', 'Dup']);
-
-      expect(rejection).toBeInstanceOf(AppError);
-      expect((rejection as AppError).message).toContain('Multiple pages match title "Dup"');
-      expect((rejection as AppError).message).toContain('Use --space to narrow or use the page ID');
     });
 
     it('includes remediation hint on missing credentials', async () => {
@@ -340,20 +328,52 @@ describe('atl-cli', () => {
   });
 
   describe('confluence pages children', () => {
-    it('forwards options with defaults', async () => {
+    it('forwards options with defaults when given numeric ID', async () => {
+      mockConfluence.resolvePageId.mockResolvedValue('10');
       mockConfluence.getDescendants.mockResolvedValue([]);
 
       await run(['confluence', 'pages', 'children', '10']);
 
+      expect(mockConfluence.resolvePageId).toHaveBeenCalledWith('10', undefined);
       expect(mockConfluence.getDescendants).toHaveBeenCalledWith('10', { depth: 5 });
     });
 
     it('forwards custom depth', async () => {
+      mockConfluence.resolvePageId.mockResolvedValue('10');
       mockConfluence.getDescendants.mockResolvedValue([]);
 
       await run(['confluence', 'pages', 'children', '10', '--depth', '3']);
 
       expect(mockConfluence.getDescendants).toHaveBeenCalledWith('10', { depth: 3 });
+    });
+
+    it('resolves title to ID when argument is not numeric', async () => {
+      mockConfluence.resolvePageId.mockResolvedValue('42');
+      mockConfluence.getDescendants.mockResolvedValue([]);
+
+      await run(['confluence', 'pages', 'children', 'My Page']);
+
+      expect(mockConfluence.resolvePageId).toHaveBeenCalledWith('My Page', undefined);
+      expect(mockConfluence.getDescendants).toHaveBeenCalledWith('42', { depth: 5 });
+    });
+
+    it('passes --space to resolvePageId', async () => {
+      mockConfluence.resolvePageId.mockResolvedValue('42');
+      mockConfluence.getDescendants.mockResolvedValue([]);
+
+      await run(['confluence', 'pages', 'children', 'My Page', '--space', 'DEV']);
+
+      expect(mockConfluence.resolvePageId).toHaveBeenCalledWith('My Page', 'DEV');
+      expect(mockConfluence.getDescendants).toHaveBeenCalledWith('42', { depth: 5 });
+    });
+
+    it('propagates resolvePageId errors', async () => {
+      mockConfluence.resolvePageId.mockRejectedValue(new AppError('No page found with title "Missing"'));
+
+      const { rejection } = await run(['confluence', 'pages', 'children', 'Missing']);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('No page found with title "Missing"');
     });
   });
 

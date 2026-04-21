@@ -379,6 +379,65 @@ describe('confluence-client', () => {
     });
   });
 
+  describe('resolvePageId', () => {
+    function rawSearchResponse(items: { id: string; title: string }[]) {
+      return {
+        results: items.map((item) => ({
+          id: item.id,
+          type: 'page',
+          status: 'current',
+          title: item.title
+        })),
+        _links: {}
+      };
+    }
+
+    it('returns value directly when all digits', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      const result = await client.resolvePageId('12345');
+
+      expect(result).toBe('12345');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('searches by title and returns the matched page ID', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(rawSearchResponse([{ id: '42', title: 'My Page' }])));
+
+      const result = await client.resolvePageId('My Page');
+
+      expect(result).toBe('42');
+    });
+
+    it('scopes CQL to space when provided', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(rawSearchResponse([{ id: '42', title: 'My Page' }])));
+
+      await client.resolvePageId('My Page', 'DEV');
+
+      const url = new URL(fetchSpy.mock.calls[0][0] as string);
+      expect(url.searchParams.get('cql')).toContain('space = "DEV"');
+    });
+
+    it('throws when no pages match', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(rawSearchResponse([])));
+
+      await expect(client.resolvePageId('Missing')).rejects.toThrow('No page found with title "Missing"');
+    });
+
+    it('throws when multiple pages match', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse(
+          rawSearchResponse([
+            { id: '1', title: 'Dup' },
+            { id: '2', title: 'Dup' }
+          ])
+        )
+      );
+
+      await expect(client.resolvePageId('Dup')).rejects.toThrow('Multiple pages match title "Dup"');
+    });
+  });
+
   describe('getDescendants', () => {
     it('fetches descendants with default depth and limit', async () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ results: [makeDescendant()], _links: {} }));
