@@ -581,18 +581,7 @@ describe('atl-cli', () => {
     it('forwards JQL and pagination params', async () => {
       mockJira.searchIssues.mockResolvedValue({ issues: [] });
 
-      await run([
-        'jira',
-        'issues',
-        'search',
-        'project=PROJ',
-        '--max-results',
-        '10',
-        '--next-page-token',
-        'tok',
-        '--fields',
-        'summary,status'
-      ]);
+      await run(['jira', 'issues', 'search', 'project=PROJ', '--limit', '10', '--cursor', 'tok', '--fields', 'summary,status']);
 
       expect(mockJira.searchIssues).toHaveBeenCalledWith({
         jql: 'project=PROJ',
@@ -602,7 +591,7 @@ describe('atl-cli', () => {
       });
     });
 
-    it('uses default max-results', async () => {
+    it('uses default limit', async () => {
       mockJira.searchIssues.mockResolvedValue({ issues: [] });
 
       await run(['jira', 'issues', 'search', 'project=PROJ']);
@@ -651,7 +640,7 @@ describe('atl-cli', () => {
     it('forwards query filter', async () => {
       mockJira.getProjects.mockResolvedValue({ values: [] });
 
-      await run(['jira', 'projects', 'list', '--query', 'web', '--start-at', '5', '--max-results', '10']);
+      await run(['jira', 'projects', 'list', '--query', 'web', '--cursor', '5', '--limit', '10']);
 
       expect(mockJira.getProjects).toHaveBeenCalledWith({ startAt: 5, maxResults: 10, query: 'web' });
     });

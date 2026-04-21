@@ -354,18 +354,18 @@ export function buildProgram(configDir?: string): Program {
     .subcommand('search')
     .description('Search issues via JQL')
     .argument('<jql>', 'JQL query')
-    .option('--next-page-token <token>', 'Cursor token for next page')
-    .option('--max-results <n>', 'Max results per page', '50')
+    .option('--cursor <cursor>', 'Pagination cursor')
+    .option('--limit <n>', 'Max results per page', '50')
     .option('--fields <fields>', 'Comma-separated field names')
     .action(async (args, opts) => {
       const creds = loadCredentials();
       const client = new JiraClient(creds);
-      const nextPageToken = opts['next-page-token'] as string | undefined;
+      const cursor = opts['cursor'] as string | undefined;
       const fields = opts['fields'] as string | undefined;
       const result = await client.searchIssues({
         jql: args['jql'] as string,
-        ...(nextPageToken !== undefined ? { nextPageToken } : {}),
-        maxResults: Number(opts['max-results']),
+        ...(cursor !== undefined ? { nextPageToken: cursor } : {}),
+        maxResults: Number(opts['limit']),
         ...(fields !== undefined ? { fields: fields.split(',') } : {})
       });
       console.log(JSON.stringify({ ...result, issues: result.issues.map(formatIssue) }, null, 2));
@@ -400,16 +400,16 @@ export function buildProgram(configDir?: string): Program {
   projects
     .subcommand('list')
     .description('List projects')
-    .option('--start-at <n>', 'Offset', '0')
-    .option('--max-results <n>', 'Max results', '50')
+    .option('--cursor <n>', 'Offset', '0')
+    .option('--limit <n>', 'Max results', '50')
     .option('--query <q>', 'Filter by name')
     .action(async (_args, opts) => {
       const creds = loadCredentials();
       const client = new JiraClient(creds);
       const query = opts['query'] as string | undefined;
       const result = await client.getProjects({
-        startAt: Number(opts['start-at']),
-        maxResults: Number(opts['max-results']),
+        startAt: Number(opts['cursor']),
+        maxResults: Number(opts['limit']),
         ...(query !== undefined ? { query } : {})
       });
       console.log(JSON.stringify({ ...result, values: result.values.map(formatProject) }, null, 2));

@@ -22,10 +22,10 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | `jira`       | `issues`   | `create`      | `<summary>`        | `--project` **(req)**, `--type` **(req)**, `--description`, `--parent`, `--labels` |
 | `jira`       | `issues`   | `update`      | `<issueKey>`       | `--summary`, `--description`, `--parent`, `--labels`, `--status`                   |
 | `jira`       | `issues`   | `delete`      | `<issueKey>`       | —                                                                                  |
-| `jira`       | `issues`   | `search`      | `<jql>`            | `--next-page-token`, `--max-results`, `--fields`                                   |
+| `jira`       | `issues`   | `search`      | `<jql>`            | `--cursor`, `--limit`, `--fields`                                                  |
 | `jira`       | `issues`   | `children`    | `<issueKey>`       | —                                                                                  |
 | `jira`       | `projects` | `get`         | `<projectKeyOrId>` | —                                                                                  |
-| `jira`       | `projects` | `list`        | —                  | `--start-at`, `--max-results`, `--query`                                           |
+| `jira`       | `projects` | `list`        | —                  | `--cursor`, `--limit`, `--query`                                                   |
 
 Global option: `-v, --verbose` (available on all commands).
 
@@ -449,15 +449,15 @@ Search issues via JQL.
 atl jira issues search <jql> [flags]
 ```
 
-| Flag                        | Description                 | Default |
-| --------------------------- | --------------------------- | ------- |
-| `--next-page-token <token>` | Cursor token for next page  | —       |
-| `--max-results <n>`         | Max results per page        | `50`    |
-| `--fields <fields>`         | Comma-separated field names | —       |
+| Flag                | Description                 | Default |
+| ------------------- | --------------------------- | ------- |
+| `--cursor <cursor>` | Pagination cursor           | —       |
+| `--limit <n>`       | Max results per page        | `50`    |
+| `--fields <fields>` | Comma-separated field names | —       |
 
 `--fields` is split on commas when provided.
 
-SDK: `searchIssues({ jql, nextPageToken, maxResults, fields })`
+SDK: `searchIssues({ jql, nextPageToken: cursor, maxResults: limit, fields })`
 
 #### `children <issueKey>`
 
@@ -495,13 +495,13 @@ List projects with optional name filter.
 atl jira projects list [flags]
 ```
 
-| Flag                | Description    | Default |
-| ------------------- | -------------- | ------- |
-| `--start-at <n>`    | Offset         | `0`     |
-| `--max-results <n>` | Max results    | `50`    |
-| `--query <q>`       | Filter by name | —       |
+| Flag           | Description    | Default |
+| -------------- | -------------- | ------- |
+| `--cursor <n>` | Offset         | `0`     |
+| `--limit <n>`  | Max results    | `50`    |
+| `--query <q>`  | Filter by name | —       |
 
-SDK: `getProjects({ startAt, maxResults, query })`
+SDK: `getProjects({ startAt: cursor, maxResults: limit, query })`
 
 ## Help Output
 
