@@ -236,7 +236,9 @@ export class ConfluenceClient {
   }
 
   async resolvePageId(pageIdOrTitle: string, space?: string): Promise<string> {
-    if (/^\d+$/.test(pageIdOrTitle)) return pageIdOrTitle;
+    if (/^\d+$/.test(pageIdOrTitle)) {
+      return pageIdOrTitle;
+    }
 
     let cql = `title = "${pageIdOrTitle}"`;
     if (space !== undefined) {
