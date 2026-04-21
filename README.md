@@ -5,12 +5,11 @@ A CLI for managing Jira and Confluence from the terminal. Hand-rolled command fr
 ## Prerequisites
 
 - Node.js >= 22.12
-- pnpm
 
-## Setup
+## Installation
 
 ```sh
-pnpm install
+npm i -g @ai-foundry/atlassian-bridge
 ```
 
 ## Authentication
@@ -20,10 +19,6 @@ Credentials can be stored locally or provided via environment variables.
 ### Login
 
 ```sh
-# Dev mode
-pnpm dev auth login --base-url https://yoursite.atlassian.net --email you@example.com --token YOUR_TOKEN
-
-# Built binary
 atl auth login --base-url https://yoursite.atlassian.net --email you@example.com --token YOUR_TOKEN
 ```
 
@@ -44,20 +39,18 @@ atl auth logout    # Remove stored credentials
 
 ## Usage
 
-In dev mode, run with `pnpm dev`; after building, use the `atl` binary directly.
-
 ```sh
 # Jira
-pnpm dev jira issues search "project = PROJ"
-pnpm dev jira issues get PROJ-123
-pnpm dev jira issues create "Fix login bug" --project PROJ --type Bug
-pnpm dev jira projects list
+atl jira issues search "project = PROJ"
+atl jira issues get PROJ-123
+atl jira issues create "Fix login bug" --project PROJ --type Bug
+atl jira projects list
 
 # Confluence
-pnpm dev confluence pages search "space = DEV"
-pnpm dev confluence pages get "My Page Title" --space DEV
-pnpm dev confluence pages children 12345
-pnpm dev confluence spaces tree SPACEKEY
+atl confluence pages search "space = DEV"
+atl confluence pages get "My Page Title" --space DEV
+atl confluence pages children 12345
+atl confluence spaces tree SPACEKEY
 ```
 
 ## Commands
@@ -90,12 +83,34 @@ Global flags: `--help`, `--version`, `-v/--verbose`
 
 ## Development
 
+### Prerequisites
+
+- Node.js >= 22.12
+- [pnpm](https://pnpm.io/)
+
+### Setup
+
+```sh
+pnpm install
+```
+
+### Scripts
+
 ```sh
 pnpm dev       # Run CLI in dev mode (tsx)
 pnpm build     # Compile TypeScript to dist/
 pnpm test      # Run all tests
 pnpm lint      # Lint with ESLint
 pnpm format    # Format with Prettier
+```
+
+### Running in dev mode
+
+In dev mode, use `pnpm dev` instead of `atl`:
+
+```sh
+pnpm dev auth login --base-url https://yoursite.atlassian.net --email you@example.com --token YOUR_TOKEN
+pnpm dev jira issues search "project = PROJ"
 ```
 
 ## License
