@@ -351,29 +351,6 @@ export function buildProgram(configDir?: string): Program {
     });
 
   issues
-    .subcommand('transitions')
-    .description('List available transitions')
-    .argument('<issueKey>', 'Issue key')
-    .action(async (args) => {
-      const creds = loadCredentials();
-      const client = new JiraClient(creds);
-      const result = await client.getTransitions(args['issueKey'] as string);
-      console.log(JSON.stringify(result, null, 2));
-    });
-
-  issues
-    .subcommand('transition')
-    .description('Execute a workflow transition')
-    .argument('<issueKey>', 'Issue key')
-    .argument('<transitionId>', 'Transition ID')
-    .action(async (args) => {
-      const creds = loadCredentials();
-      const client = new JiraClient(creds);
-      await client.transitionIssue(args['issueKey'] as string, { transitionId: args['transitionId'] as string });
-      console.log('Done.');
-    });
-
-  issues
     .subcommand('search')
     .description('Search issues via JQL')
     .argument('<jql>', 'JQL query')

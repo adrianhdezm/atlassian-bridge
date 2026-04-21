@@ -562,7 +562,7 @@ describe('atl-cli', () => {
     });
   });
 
-  // ── jira issues delete / transitions / transition ───────────
+  // ── jira issues delete ──────────────────────────────────────
 
   describe('jira issues delete', () => {
     it('deletes and prints Done', async () => {
@@ -571,29 +571,6 @@ describe('atl-cli', () => {
       const { logs } = await run(['jira', 'issues', 'delete', 'PROJ-1']);
 
       expect(mockJira.deleteIssue).toHaveBeenCalledWith('PROJ-1');
-      expect(logs).toContain('Done.');
-    });
-  });
-
-  describe('jira issues transitions', () => {
-    it('lists transitions', async () => {
-      const transitions = [{ id: '1', name: 'Done', to: { id: '2', name: 'Done' } }];
-      mockJira.getTransitions.mockResolvedValue(transitions);
-
-      const { logs } = await run(['jira', 'issues', 'transitions', 'PROJ-1']);
-
-      expect(mockJira.getTransitions).toHaveBeenCalledWith('PROJ-1');
-      expect(logs[0]).toContain('"name": "Done"');
-    });
-  });
-
-  describe('jira issues transition', () => {
-    it('executes transition and prints Done', async () => {
-      mockJira.transitionIssue.mockResolvedValue(undefined);
-
-      const { logs } = await run(['jira', 'issues', 'transition', 'PROJ-1', '5']);
-
-      expect(mockJira.transitionIssue).toHaveBeenCalledWith('PROJ-1', { transitionId: '5' });
       expect(logs).toContain('Done.');
     });
   });

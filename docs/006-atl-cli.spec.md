@@ -4,30 +4,28 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 
 ## Command Overview
 
-| Namespace    | Command    | Subcommand    | Arguments                     | Options                                                                            |
-| ------------ | ---------- | ------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
-| —            | `auth`     | `login`       | —                             | `--base-url <url>`, `--email <email>`, `--token <token>`                           |
-| —            | `auth`     | `status`      | —                             | —                                                                                  |
-| —            | `auth`     | `logout`      | —                             | —                                                                                  |
-| `confluence` | `pages`    | `get`         | `<pageId>`                    | —                                                                                  |
-| `confluence` | `pages`    | `list`        | —                             | `--space`, `--title`, `--status`, `--limit`, `--cursor`                            |
-| `confluence` | `pages`    | `create`      | `<title>`                     | `--space` **(req)**, `--parent-id`, `--body`                                       |
-| `confluence` | `pages`    | `update`      | `<pageId>`                    | `--title`, `--body`                                                                |
-| `confluence` | `pages`    | `delete`      | `<pageId>`                    | —                                                                                  |
-| `confluence` | `pages`    | `descendants` | `<pageId>`                    | `--depth`, `--limit`                                                               |
-| `confluence` | `pages`    | `search`      | `<cql>`                       | `--limit`, `--cursor`                                                              |
-| `confluence` | `spaces`   | `get`         | `<spaceIdOrKey>`              | —                                                                                  |
-| `confluence` | `spaces`   | `tree`        | `<spaceIdOrKey>`              | `--depth`                                                                          |
-| `jira`       | `issues`   | `get`         | `<issueKey>`                  | —                                                                                  |
-| `jira`       | `issues`   | `create`      | `<summary>`                   | `--project` **(req)**, `--type` **(req)**, `--description`, `--parent`, `--labels` |
-| `jira`       | `issues`   | `update`      | `<issueKey>`                  | `--summary`, `--description`, `--parent`, `--labels`, `--status`                   |
-| `jira`       | `issues`   | `delete`      | `<issueKey>`                  | —                                                                                  |
-| `jira`       | `issues`   | `transitions` | `<issueKey>`                  | —                                                                                  |
-| `jira`       | `issues`   | `transition`  | `<issueKey>` `<transitionId>` | —                                                                                  |
-| `jira`       | `issues`   | `search`      | `<jql>`                       | `--next-page-token`, `--max-results`, `--fields`                                   |
-| `jira`       | `issues`   | `children`    | `<issueKey>`                  | —                                                                                  |
-| `jira`       | `projects` | `get`         | `<projectKeyOrId>`            | —                                                                                  |
-| `jira`       | `projects` | `list`        | —                             | `--start-at`, `--max-results`, `--query`                                           |
+| Namespace    | Command    | Subcommand    | Arguments          | Options                                                                            |
+| ------------ | ---------- | ------------- | ------------------ | ---------------------------------------------------------------------------------- |
+| —            | `auth`     | `login`       | —                  | `--base-url <url>`, `--email <email>`, `--token <token>`                           |
+| —            | `auth`     | `status`      | —                  | —                                                                                  |
+| —            | `auth`     | `logout`      | —                  | —                                                                                  |
+| `confluence` | `pages`    | `get`         | `<pageId>`         | —                                                                                  |
+| `confluence` | `pages`    | `list`        | —                  | `--space`, `--title`, `--status`, `--limit`, `--cursor`                            |
+| `confluence` | `pages`    | `create`      | `<title>`          | `--space` **(req)**, `--parent-id`, `--body`                                       |
+| `confluence` | `pages`    | `update`      | `<pageId>`         | `--title`, `--body`                                                                |
+| `confluence` | `pages`    | `delete`      | `<pageId>`         | —                                                                                  |
+| `confluence` | `pages`    | `descendants` | `<pageId>`         | `--depth`, `--limit`                                                               |
+| `confluence` | `pages`    | `search`      | `<cql>`            | `--limit`, `--cursor`                                                              |
+| `confluence` | `spaces`   | `get`         | `<spaceIdOrKey>`   | —                                                                                  |
+| `confluence` | `spaces`   | `tree`        | `<spaceIdOrKey>`   | `--depth`                                                                          |
+| `jira`       | `issues`   | `get`         | `<issueKey>`       | —                                                                                  |
+| `jira`       | `issues`   | `create`      | `<summary>`        | `--project` **(req)**, `--type` **(req)**, `--description`, `--parent`, `--labels` |
+| `jira`       | `issues`   | `update`      | `<issueKey>`       | `--summary`, `--description`, `--parent`, `--labels`, `--status`                   |
+| `jira`       | `issues`   | `delete`      | `<issueKey>`       | —                                                                                  |
+| `jira`       | `issues`   | `search`      | `<jql>`            | `--next-page-token`, `--max-results`, `--fields`                                   |
+| `jira`       | `issues`   | `children`    | `<issueKey>`       | —                                                                                  |
+| `jira`       | `projects` | `get`         | `<projectKeyOrId>` | —                                                                                  |
+| `jira`       | `projects` | `list`        | —                  | `--start-at`, `--max-results`, `--query`                                           |
 
 Global option: `-v, --verbose` (available on all commands).
 
@@ -125,7 +123,7 @@ const client = new ConfluenceClient(creds); // or JiraClient(creds)
 Actions print results to stdout via `console.log`:
 
 - **Data operations** — `console.log(JSON.stringify(result, null, 2))`
-- **Void operations** (delete, transition) — `console.log('Done.')`
+- **Void operations** (delete) — `console.log('Done.')`
 
 ### Output Formatting
 
@@ -443,26 +441,6 @@ atl jira issues delete <issueKey>
 
 SDK: `deleteIssue(issueKey)` → prints `"Done."`
 
-#### `transitions <issueKey>`
-
-List available transitions for an issue.
-
-```
-atl jira issues transitions <issueKey>
-```
-
-SDK: `getTransitions(issueKey)`
-
-#### `transition <issueKey> <transitionId>`
-
-Execute a workflow transition.
-
-```
-atl jira issues transition <issueKey> <transitionId>
-```
-
-SDK: `transitionIssue(issueKey, { transitionId })` → prints `"Done."`
-
 #### `search <jql>`
 
 Search issues via JQL.
@@ -571,7 +549,7 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 | `confluence spaces tree`                     | SDK delegation, depth option                                                                                                                                                                                    |
 | `jira issues create`                         | Required `--project`/`--type`, `JSON.parse` on description, comma-split labels                                                                                                                                  |
 | `jira issues update`                         | Partial update, description parse, parent key forwarding, `--status` transition resolution (name→ID via `getIssue` transitions, case-insensitive first match, `AppError` on no match, transition before update) |
-| `jira issues delete/transitions/transition`  | SDK delegation, "Done" output                                                                                                                                                                                   |
+| `jira issues delete`                         | SDK delegation, "Done" output                                                                                                                                                                                   |
 | `jira issues search`                         | JQL string, pagination params, comma-split fields                                                                                                                                                               |
 | `jira issues children`                       | Auto-pagination delegation                                                                                                                                                                                      |
 | `jira projects get`                          | SDK delegation, project key or ID                                                                                                                                                                               |
