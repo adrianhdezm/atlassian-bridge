@@ -345,15 +345,15 @@ describe('atl-cli', () => {
 
       await run(['confluence', 'pages', 'children', '10']);
 
-      expect(mockConfluence.getDescendants).toHaveBeenCalledWith('10', { depth: 5, limit: 250 });
+      expect(mockConfluence.getDescendants).toHaveBeenCalledWith('10', { depth: 5 });
     });
 
-    it('forwards custom options', async () => {
+    it('forwards custom depth', async () => {
       mockConfluence.getDescendants.mockResolvedValue([]);
 
-      await run(['confluence', 'pages', 'children', '10', '--depth', '3', '--limit', '100']);
+      await run(['confluence', 'pages', 'children', '10', '--depth', '3']);
 
-      expect(mockConfluence.getDescendants).toHaveBeenCalledWith('10', { depth: 3, limit: 100 });
+      expect(mockConfluence.getDescendants).toHaveBeenCalledWith('10', { depth: 3 });
     });
   });
 

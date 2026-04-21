@@ -13,7 +13,7 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | `confluence` | `pages`    | `create`   | `<title>`          | `--space` **(req)**, `--parent`, `--body`                                          |
 | `confluence` | `pages`    | `update`   | `<pageId>`         | `--title`, `--body`, `--parent`                                                    |
 | `confluence` | `pages`    | `delete`   | `<pageId>`         | —                                                                                  |
-| `confluence` | `pages`    | `children` | `<pageId>`         | `--depth`, `--limit`                                                               |
+| `confluence` | `pages`    | `children` | `<pageId>`         | `--depth`                                                                          |
 | `confluence` | `pages`    | `search`   | `<cql>`            | `--limit`, `--cursor`                                                              |
 | `confluence` | `spaces`   | `get`      | `<spaceIdOrKey>`   | —                                                                                  |
 | `confluence` | `spaces`   | `tree`     | `<spaceIdOrKey>`   | `--depth`                                                                          |
@@ -285,10 +285,9 @@ Fetch child pages as a flat list. Auto-paginates internally.
 atl confluence pages children <pageId> [flags]
 ```
 
-| Flag          | Description          | Default |
-| ------------- | -------------------- | ------- |
-| `--depth <n>` | Tree depth           | `5`     |
-| `--limit <n>` | Per-page fetch limit | `250`   |
+| Flag          | Description | Default |
+| ------------- | ----------- | ------- |
+| `--depth <n>` | Tree depth  | `5`     |
 
 SDK: `getDescendants(pageId, { depth, limit })`
 

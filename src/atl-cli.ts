@@ -186,13 +186,11 @@ export function buildProgram(configDir?: string): Program {
     .description('Get child pages')
     .argument('<pageId>', 'Page ID')
     .option('--depth <n>', 'Tree depth', '5')
-    .option('--limit <n>', 'Per-page fetch limit', '250')
     .action(async (args, opts) => {
       const creds = loadCredentials();
       const client = new ConfluenceClient(creds);
       const result = await client.getDescendants(args['pageId'] as string, {
-        depth: Number(opts['depth']),
-        limit: Number(opts['limit'])
+        depth: Number(opts['depth'])
       });
       console.log(JSON.stringify(result, null, 2));
     });
