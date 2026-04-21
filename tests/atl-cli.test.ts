@@ -7,7 +7,7 @@ import { AppError } from '../src/shared/app-error.js';
 
 // ── SDK mocks ───────────────────────────────────────────────────
 
-const { mockConfluence, mockJira } = vi.hoisted(() => ({
+const { mockConfluence, mockJira, mockExecSync } = vi.hoisted(() => ({
   mockConfluence: {
     getPage: vi.fn(),
     getPages: vi.fn(),
@@ -31,7 +31,8 @@ const { mockConfluence, mockJira } = vi.hoisted(() => ({
     getChildIssues: vi.fn(),
     getProject: vi.fn(),
     getProjects: vi.fn()
-  }
+  },
+  mockExecSync: vi.fn()
 }));
 
 vi.mock('../src/confluence/confluence-client.js', () => ({
@@ -62,6 +63,10 @@ vi.mock('../src/jira/jira-client.js', () => ({
     getProject = mockJira.getProject;
     getProjects = mockJira.getProjects;
   }
+}));
+
+vi.mock('node:child_process', () => ({
+  execSync: mockExecSync
 }));
 
 // ── helpers ─────────────────────────────────────────────────────
@@ -676,6 +681,17 @@ describe('atl-cli', () => {
       await run(['jira', 'projects', 'list', '--query', 'web', '--cursor', '5', '--limit', '10']);
 
       expect(mockJira.getProjects).toHaveBeenCalledWith({ startAt: 5, maxResults: 10, query: 'web' });
+    });
+  });
+
+  // ── pkg upgrade ────────────────────────────────────────────────
+
+  describe('pkg upgrade', () => {
+    it('runs npm update -g @ai-foundry/atlassian-bridge', async () => {
+      const { logs } = await run(['pkg', 'upgrade']);
+
+      expect(logs).toContain('Upgrading @ai-foundry/atlassian-bridge...');
+      expect(mockExecSync).toHaveBeenCalledWith('npm update -g @ai-foundry/atlassian-bridge', { stdio: 'inherit' });
     });
   });
 });

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +71,18 @@ export function buildProgram(configDir?: string): Program {
     .action(() => {
       const removed = credentialStorage.clear();
       console.log(removed ? 'Credentials removed.' : 'No stored credentials found.');
+    });
+
+  // ── pkg ───────────────────────────────────────────────────────
+
+  const pkg = program.command('pkg').description('Manage the atl package');
+
+  pkg
+    .subcommand('upgrade')
+    .description('Update atl to the latest version')
+    .action(() => {
+      console.log('Upgrading @ai-foundry/atlassian-bridge...');
+      execSync('npm update -g @ai-foundry/atlassian-bridge', { stdio: 'inherit' });
     });
 
   // ── confluence ────────────────────────────────────────────────

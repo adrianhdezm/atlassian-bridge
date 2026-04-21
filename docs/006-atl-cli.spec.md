@@ -9,6 +9,7 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | —            | `auth`     | `login`    | —                  | `--base-url <url>`, `--email <email>`, `--token <token>`                           |
 | —            | `auth`     | `status`   | —                  | —                                                                                  |
 | —            | `auth`     | `logout`   | —                  | —                                                                                  |
+| —            | `pkg`      | `upgrade`  | —                  | —                                                                                  |
 | `confluence` | `pages`    | `get`      | `<pageIdOrTitle>`  | `--space`                                                                          |
 | `confluence` | `pages`    | `create`   | `<title>`          | `--space` **(req)**, `--parent`, `--body`                                          |
 | `confluence` | `pages`    | `update`   | `<pageId>`         | `--title`, `--body`, `--parent`                                                    |
@@ -33,7 +34,7 @@ Global option: `-v, --verbose` (available on all commands).
 ```
 src/
 ├── main.ts      Entry point — bootstraps the program and registers the global error handler (deps: atl-cli)
-└── atl-cli.ts    Program factory — namespaces, commands, actions (deps: node:fs, node:path, node:url, cli/program, shared/app-error, auth/credential-storage, jira/jira-client, confluence/confluence-client)
+└── atl-cli.ts    Program factory — namespaces, commands, actions (deps: node:child_process, node:fs, node:path, node:url, cli/program, shared/app-error, auth/credential-storage, jira/jira-client, confluence/confluence-client)
 ```
 
 ## Program
@@ -197,6 +198,26 @@ atl auth logout
 ```
 
 Calls `CredentialStorage.clear()`. Prints `"Credentials removed."` if the file existed, `"No stored credentials found."` otherwise. Does **not** affect environment variables.
+
+---
+
+### `pkg` (top-level command)
+
+```ts
+const pkg = program.command('pkg').description('Manage the atl package');
+```
+
+#### `upgrade`
+
+Update the globally installed package to the latest version.
+
+```
+atl pkg upgrade
+```
+
+Prints `"Upgrading @ai-foundry/atlassian-bridge..."` then runs `npm update -g @ai-foundry/atlassian-bridge` via `execSync` with `stdio: 'inherit'` so npm output streams directly to the terminal.
+
+No credentials required.
 
 ---
 
@@ -526,6 +547,7 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 | `auth login`                | Saves credentials, throws on missing flags                                                                                                                                                                      |
 | `auth status`               | Displays masked token, throws when unconfigured                                                                                                                                                                 |
 | `auth logout`               | Removes file, handles missing file                                                                                                                                                                              |
+| `pkg upgrade`               | Calls `execSync` with correct npm command and `stdio: 'inherit'`                                                                                                                                                |
 | `confluence pages get`      | Fetch by numeric ID, title search, `--space` scoping, zero/multiple match errors, credential loading + remediation hint                                                                                         |
 | `confluence pages create`   | Required `--space` enforcement                                                                                                                                                                                  |
 | `confluence pages update`   | Fetches current values when flags omitted                                                                                                                                                                       |

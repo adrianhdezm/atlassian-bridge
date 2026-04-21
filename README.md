@@ -37,6 +37,12 @@ atl auth status    # Show current credentials
 atl auth logout    # Remove stored credentials
 ```
 
+## Upgrading
+
+```sh
+atl pkg upgrade
+```
+
 ## Usage
 
 ```sh
@@ -57,6 +63,8 @@ atl confluence spaces tree SPACEKEY
 
 ```
 atl auth login|status|logout
+
+atl pkg upgrade
 
 atl jira issues get <issueKey>
 atl jira issues create <summary> --project <key> --type <name> [--description <adf>] [--parent <key>] [--labels <csv>]
