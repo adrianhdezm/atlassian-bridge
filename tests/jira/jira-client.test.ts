@@ -311,26 +311,36 @@ describe('jira-client', () => {
   describe('updateIssue', () => {
     it('sends partial update with only provided fields', async () => {
       const updated = makeIssue({ fields: { ...makeIssue().fields, summary: 'Updated title' } });
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(updated));
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(new Response(null, { status: 204, statusText: 'No Content' }))
+        .mockResolvedValueOnce(jsonResponse(updated));
 
       await client.updateIssue('PROJ-1', { summary: 'Updated title' });
 
-      const call = fetchSpy.mock.calls[0];
-      expect(call[0]).toBe(`${API}/issue/PROJ-1?returnIssue=true`);
-      expect(call[1]!.method).toBe('PUT');
-      const body = JSON.parse(call[1]!.body as string) as Record<string, unknown>;
+      const putCall = fetchSpy.mock.calls[0];
+      expect(putCall[0]).toBe(`${API}/issue/PROJ-1`);
+      expect(putCall[1]!.method).toBe('PUT');
+      const body = JSON.parse(putCall[1]!.body as string) as Record<string, unknown>;
       const fields = body['fields'] as Record<string, unknown>;
       expect(fields['summary']).toBe('Updated title');
       expect(fields['description']).toBeUndefined();
       expect(fields['parent']).toBeUndefined();
       expect(fields['labels']).toBeUndefined();
+
+      const getCall = fetchSpy.mock.calls[1];
+      expect(getCall[0]).toContain(`${API}/issue/PROJ-1`);
+      expect(getCall[1]!.method).toBeUndefined();
     });
 
     it('sends all fields when all are provided', async () => {
       const updated = makeIssue({
         fields: { ...makeIssue().fields, summary: 'New title', description: validAdf, labels: ['backend', 'urgent'] }
       });
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(updated));
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(new Response(null, { status: 204, statusText: 'No Content' }))
+        .mockResolvedValueOnce(jsonResponse(updated));
 
       await client.updateIssue('PROJ-1', {
         summary: 'New title',
@@ -357,7 +367,9 @@ describe('jira-client', () => {
 
     it('returns updated Issue on success', async () => {
       const updated = makeIssue({ fields: { ...makeIssue().fields, summary: 'Updated' } });
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(updated));
+      vi.spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(new Response(null, { status: 204, statusText: 'No Content' }))
+        .mockResolvedValueOnce(jsonResponse(updated));
 
       const result = await client.updateIssue('PROJ-1', { summary: 'Updated' });
 
@@ -366,7 +378,7 @@ describe('jira-client', () => {
     });
 
     it('throws on non-ok response', async () => {
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 400, statusText: 'Bad Request' }));
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(null, { status: 400, statusText: 'Bad Request' }));
 
       await expect(client.updateIssue('PROJ-1', { summary: 'Bad' })).rejects.toThrow('Request failed with status 400 | Bad Request');
     });

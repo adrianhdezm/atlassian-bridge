@@ -144,11 +144,16 @@ export class JiraClient {
       fields['parent'] = { key: input.parentKey };
     }
 
-    return fetchJsonObject(IssueSchema, `${this.apiUrl}/issue/${issueIdOrKey}?returnIssue=true`, {
+    const response = await fetch(`${this.apiUrl}/issue/${issueIdOrKey}`, {
       method: 'PUT',
       headers: this.headers,
       body: JSON.stringify({ fields })
     });
+    if (!response.ok) {
+      throw new HttpError(response.status, response.statusText);
+    }
+
+    return this.getIssue(issueIdOrKey);
   }
 
   async deleteIssue(issueIdOrKey: string): Promise<void> {

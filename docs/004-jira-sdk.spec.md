@@ -47,7 +47,7 @@ export class JiraClient {
 }
 ```
 
-`deleteIssue` and `transitionIssue` return `void` — matching the Jira API's 204 No Content responses. `createIssue` returns a reference `{ id, key, self }`, not the full issue. `updateIssue` returns the full updated `Issue` — enabled by the `returnIssue=true` query parameter.
+`deleteIssue` and `transitionIssue` return `void` — matching the Jira API's 204 No Content responses. `createIssue` returns a reference `{ id, key, self }`, not the full issue. `updateIssue` returns the full updated `Issue` — the PUT returns 204, then `getIssue` fetches the complete representation.
 
 ## Zod Schemas
 
@@ -321,7 +321,7 @@ Validates `description` against `AdfSchema` when provided. Wraps `projectKey` as
 
 ### updateIssue
 
-`PUT /rest/api/3/issue/{issueIdOrKey}?returnIssue=true`
+`PUT /rest/api/3/issue/{issueIdOrKey}` followed by `GET /rest/api/3/issue/{issueIdOrKey}`
 
 Request body sent to API:
 
@@ -336,7 +336,7 @@ Request body sent to API:
 }
 ```
 
-Only includes fields that are provided in `UpdateIssueAttrs` — partial update. Validates `description` against `AdfSchema` when provided. Wraps `parentKey` as `{ key }` (same as `createIssue`). Returns the full updated `Issue` — uses `fetchJsonObject` with `IssueSchema`, enabled by the `returnIssue=true` query parameter.
+Only includes fields that are provided in `UpdateIssueAttrs` — partial update. Validates `description` against `AdfSchema` when provided. Wraps `parentKey` as `{ key }` (same as `createIssue`). The PUT returns 204 No Content; the method then calls `getIssue` to fetch and return the full updated `Issue`.
 
 ### deleteIssue
 
