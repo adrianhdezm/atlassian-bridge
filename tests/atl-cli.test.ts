@@ -322,7 +322,7 @@ describe('atl-cli', () => {
     });
   });
 
-  // ── confluence pages delete / descendants / search ──────────
+  // ── confluence pages delete / children / search ──────────
 
   describe('confluence pages delete', () => {
     it('deletes and prints Done', async () => {
@@ -335,11 +335,11 @@ describe('atl-cli', () => {
     });
   });
 
-  describe('confluence pages descendants', () => {
+  describe('confluence pages children', () => {
     it('forwards options with defaults', async () => {
       mockConfluence.getDescendants.mockResolvedValue([]);
 
-      await run(['confluence', 'pages', 'descendants', '10']);
+      await run(['confluence', 'pages', 'children', '10']);
 
       expect(mockConfluence.getDescendants).toHaveBeenCalledWith('10', { depth: 5, limit: 250 });
     });
@@ -347,7 +347,7 @@ describe('atl-cli', () => {
     it('forwards custom options', async () => {
       mockConfluence.getDescendants.mockResolvedValue([]);
 
-      await run(['confluence', 'pages', 'descendants', '10', '--depth', '3', '--limit', '100']);
+      await run(['confluence', 'pages', 'children', '10', '--depth', '3', '--limit', '100']);
 
       expect(mockConfluence.getDescendants).toHaveBeenCalledWith('10', { depth: 3, limit: 100 });
     });

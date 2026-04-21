@@ -184,8 +184,8 @@ export function buildProgram(configDir?: string): Program {
     });
 
   pages
-    .subcommand('descendants')
-    .description('Get page descendants')
+    .subcommand('children')
+    .description('Get child pages')
     .argument('<pageId>', 'Page ID')
     .option('--depth <n>', 'Tree depth', '5')
     .option('--limit <n>', 'Per-page fetch limit', '250')
