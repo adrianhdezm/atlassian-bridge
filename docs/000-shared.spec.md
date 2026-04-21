@@ -39,6 +39,8 @@ export const AdfSchema = z.fromJSONSchema(adfJsonSchema as JSONSchema.JSONSchema
 
 The `as JSONSchema.JSONSchema` cast is required because `resolveJsonModule` widens string literals (e.g. `$schema`) to `string`, which doesn't satisfy Zod's literal union. `satisfies` cannot be used here.
 
+`z.fromJSONSchema()` can be lossy with deeply nested `anyOf`/`$ref` structures. `tests/shared/adf-schema.test.ts` verifies the conversion handles complex ADF node types (emoji, status, mediaSingle, annotation marks, tables, expand) correctly.
+
 ## Format Utils
 
 Two complementary utilities for cleaning API objects before CLI output. Used by the domain-specific format modules (`jira-format.ts`, `confluence-format.ts`).
@@ -81,4 +83,4 @@ Credentials are resolved by `CredentialStorage` (see `005-credential-storage.spe
 
 ### Testing
 
-All test files follow AAA structure. Mock `fetch` globally via `vi.spyOn(globalThis, 'fetch')` where needed. `AppError` is tested via `tests/cli/cli-models.test.ts` (re-exported from `cli-models.ts`), `AdfSchema` is tested indirectly via the Confluence and Jira client tests. `stripKeys` and `stripPaths` are tested directly in `tests/shared/format-utils.test.ts`.
+All test files follow AAA structure. Mock `fetch` globally via `vi.spyOn(globalThis, 'fetch')` where needed. `AppError` is tested via `tests/cli/cli-models.test.ts` (re-exported from `cli-models.ts`). `AdfSchema` is tested directly in `tests/shared/adf-schema.test.ts` (valid and invalid ADF documents) and indirectly via the Confluence and Jira client tests. `stripKeys` and `stripPaths` are tested directly in `tests/shared/format-utils.test.ts`.
