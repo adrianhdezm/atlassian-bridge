@@ -59,7 +59,7 @@ export function confluencePaginatedSchema<T extends z.ZodTypeAny>(itemSchema: T)
 }
 ```
 
-Used to build `PaginatedPagesSchema`, `SearchResultSchema`, `PaginatedDescendantsSchema`, and the internal `RawSearchSchema` in `confluence-client.ts`.
+Used to build `PaginatedPagesSchema`, `SearchResultSchema`, and `PaginatedDescendantsSchema`.
 
 ### Page
 
@@ -108,14 +108,14 @@ type PaginatedPages = z.infer<typeof PaginatedPagesSchema>;
 
 ### Search Result
 
-Flattened from the v1 CQL response — each hit is `{ id, title, excerpt, url }`.
+Each result is a v1 content object parsed with `z.looseObject` — only the fields the CLI consumes are declared.
 
 ```ts
-const SearchResultItemSchema = z.object({
+const SearchResultItemSchema = z.looseObject({
   id: z.string(),
-  title: z.string(),
-  excerpt: z.string(),
-  url: z.string()
+  type: z.string(),
+  status: z.string(),
+  title: z.string()
 });
 
 const SearchResultSchema = confluencePaginatedSchema(SearchResultItemSchema);
@@ -125,7 +125,7 @@ type SearchResult = z.infer<typeof SearchResultSchema>;
 // { results: SearchResultItem[]; _links: { next?: string } }
 ```
 
-The `searchPages` method maps the raw v1 response into this flat shape before returning — callers never see the nested `content` wrapper. The internal `RawSearchSchema` in `confluence-client.ts` also uses `confluencePaginatedSchema` with the raw v1 item shape.
+The `searchPages` method parses the v1 response directly with `SearchResultSchema` — no intermediate mapping needed.
 
 ### Space
 
@@ -307,7 +307,7 @@ Moves page to trash. Returns 204 (no body). Uses raw `fetch` with `this.headers`
 
 `GET /wiki/rest/api/content/search?cql=...&limit=...`
 
-The v2 API has no search endpoint — uses the **v1 CQL endpoint**. The method URL-encodes `cql`, fetches the raw v1 response, and maps each hit to `{ id, title, excerpt, url }` before validating against `SearchResultSchema`. Pagination is single-hop like `getPages` — the caller passes `cursor` from `_links.next` for subsequent pages. CQL reference: [Advanced searching using CQL](https://developer.atlassian.com/cloud/confluence/advanced-searching-using-cql/)
+The v2 API has no search endpoint — uses the **v1 CQL endpoint**. The method prepends `type = "page" AND` to the caller's CQL to ensure only pages are returned, URL-encodes the full query, and parses the response directly with `SearchResultSchema`. Pagination is single-hop — the caller passes `cursor` from `_links.next` for subsequent pages. CQL reference: [Advanced searching using CQL](https://developer.atlassian.com/cloud/confluence/advanced-searching-using-cql/)
 
 ### getDescendants
 
@@ -346,7 +346,7 @@ const created = await client.createPage({
     content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }]
   })
 });
-const results = await client.searchPages({ cql: 'type = page AND space = "DEV"' });
+const results = await client.searchPages({ cql: 'space = "DEV"' });
 ```
 
 ## Output Formatting

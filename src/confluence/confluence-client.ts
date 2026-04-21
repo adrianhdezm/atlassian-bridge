@@ -1,9 +1,7 @@
-import { z } from 'zod';
 import { fetchAll, fetchJsonObject, HttpError } from '../http-client/http-client.js';
 import { AdfSchema } from '../shared/adf-schema.js';
 import { AppError } from '../shared/app-error.js';
 import {
-  confluencePaginatedSchema,
   PageSchema,
   PaginatedPagesSchema,
   PaginatedDescendantsSchema,
@@ -12,15 +10,6 @@ import {
   SpaceSchema
 } from './confluence-models.js';
 import type { Page, PaginatedPages, SearchResult, DescendantPage, Space } from './confluence-models.js';
-
-const RawSearchSchema = confluencePaginatedSchema(
-  z.object({
-    content: z.object({ id: z.string() }),
-    title: z.string(),
-    excerpt: z.string(),
-    url: z.string()
-  })
-);
 
 export interface ConfluenceClientConfig {
   baseUrl: string;
@@ -184,7 +173,8 @@ export class ConfluenceClient {
   }
 
   async searchPages(options: SearchPagesOptions): Promise<SearchResult> {
-    const params = new URLSearchParams({ cql: options.cql });
+    const cql = `type = "page" AND ${options.cql}`;
+    const params = new URLSearchParams({ cql });
     if (options.limit !== undefined) {
       params.set('limit', String(options.limit));
     }
@@ -269,18 +259,6 @@ export class ConfluenceClient {
   }
 
   private async fetchSearchResults(url: string): Promise<SearchResult> {
-    const raw = await fetchJsonObject(RawSearchSchema, url, { headers: this.headers });
-
-    const mapped = {
-      results: raw.results.map((r) => ({
-        id: r.content.id,
-        title: r.title,
-        excerpt: r.excerpt,
-        url: r.url
-      })),
-      _links: raw._links
-    };
-
-    return SearchResultSchema.parse(mapped);
+    return fetchJsonObject(SearchResultSchema, url, { headers: this.headers });
   }
 }

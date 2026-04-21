@@ -41,11 +41,11 @@ export const PaginatedPagesSchema = confluencePaginatedSchema(PageSchema);
 
 export type PaginatedPages = z.infer<typeof PaginatedPagesSchema>;
 
-export const SearchResultItemSchema = z.object({
+export const SearchResultItemSchema = z.looseObject({
   id: z.string(),
-  title: z.string(),
-  excerpt: z.string(),
-  url: z.string()
+  type: z.string(),
+  status: z.string(),
+  title: z.string()
 });
 
 export type SearchResultItem = z.infer<typeof SearchResultItemSchema>;

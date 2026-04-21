@@ -82,12 +82,35 @@ export function buildProgram(configDir?: string): Program {
 
   pages
     .subcommand('get')
-    .description('Get a page by ID')
-    .argument('<pageId>', 'Page ID')
-    .action(async (args) => {
+    .description('Get a page by ID or title')
+    .argument('<pageIdOrTitle>', 'Page ID or title')
+    .option('--space <id>', 'Space ID or key (narrows title search)')
+    .action(async (args, opts) => {
       const creds = loadCredentials();
       const client = new ConfluenceClient(creds);
-      const result = await client.getPage(args['pageId'] as string);
+      const value = args['pageIdOrTitle'] as string;
+
+      let pageId: string;
+      if (/^\d+$/.test(value)) {
+        pageId = value;
+      } else {
+        const space = opts['space'] as string | undefined;
+        let cql = `title = "${value}"`;
+        if (space !== undefined) {
+          cql += ` AND space = "${space}"`;
+        }
+        const search = await client.searchPages({ cql });
+        if (search.results.length === 0) {
+          throw new AppError(`No page found with title "${value}"`);
+        }
+        if (search.results.length > 1) {
+          const matches = search.results.map((r) => `  ${r.id}: ${r.title}`).join('\n');
+          throw new AppError(`Multiple pages match title "${value}":\n${matches}\nUse --space to narrow or use the page ID`);
+        }
+        pageId = search.results[0]!.id;
+      }
+
+      const result = await client.getPage(pageId);
       console.log(JSON.stringify(formatPage(result), null, 2));
     });
 

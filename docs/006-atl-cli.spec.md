@@ -9,7 +9,7 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | —            | `auth`     | `login`    | —                  | `--base-url <url>`, `--email <email>`, `--token <token>`                           |
 | —            | `auth`     | `status`   | —                  | —                                                                                  |
 | —            | `auth`     | `logout`   | —                  | —                                                                                  |
-| `confluence` | `pages`    | `get`      | `<pageId>`         | —                                                                                  |
+| `confluence` | `pages`    | `get`      | `<pageIdOrTitle>`  | `--space`                                                                          |
 | `confluence` | `pages`    | `create`   | `<title>`          | `--space` **(req)**, `--parent`, `--body`                                          |
 | `confluence` | `pages`    | `update`   | `<pageId>`         | `--title`, `--body`, `--parent`                                                    |
 | `confluence` | `pages`    | `delete`   | `<pageId>`         | —                                                                                  |
@@ -217,17 +217,19 @@ atl confluence pages get <pageId>
 ```ts
 pages
   .subcommand('get')
-  .description('Get a page by ID')
-  .argument('<pageId>', 'Page ID')
-  .action(async (args) => {
-    const creds = loadCredentials();
-    const client = new ConfluenceClient(creds);
-    const page = await client.getPage(args['pageId'] as string);
-    console.log(JSON.stringify(page, null, 2));
-  });
+  .description('Get a page by ID or title')
+  .argument('<pageIdOrTitle>', 'Page ID or title')
+  .option('--space <id>', 'Space ID or key (narrows title search)')
+  .action(async (args, opts) => { ... });
 ```
 
-SDK: `getPage(pageId)`
+If the argument is all digits, it is treated as a page ID and fetches directly via `getPage(id)`. Otherwise, it performs a CQL title search. If `--space` is provided, the CQL is scoped: `title = "X" AND space = "KEY"`. Exactly one result is required — zero results throws an error, and multiple matches lists them so the user can refine with `--space` or use the page ID directly.
+
+| Flag           | Description                            |
+| -------------- | -------------------------------------- |
+| `--space <id>` | Space ID or key (narrows title search) |
+
+SDK: `searchPages({ cql })` → `getPage(pageId)`
 
 #### `create <title>`
 

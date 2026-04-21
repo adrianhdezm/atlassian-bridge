@@ -6,7 +6,6 @@ import { AppError } from '../../src/shared/app-error.js';
 
 const BASE_URL = 'https://test.atlassian.net';
 const V2 = `${BASE_URL}/wiki/api/v2`;
-const V1 = `${BASE_URL}/wiki/rest/api`;
 
 const validAdf = JSON.stringify({
   version: 1,
@@ -324,40 +323,40 @@ describe('confluence-client', () => {
   });
 
   describe('searchPages', () => {
-    function rawSearchResponse(items: { id: string; title: string; excerpt: string; url: string }[]) {
+    function rawSearchResponse(items: { id: string; title: string }[]) {
       return {
         results: items.map((item) => ({
-          content: { id: item.id },
-          title: item.title,
-          excerpt: item.excerpt,
-          url: item.url
+          id: item.id,
+          type: 'page',
+          status: 'current',
+          title: item.title
         })),
         _links: {}
       };
     }
 
-    it('URL-encodes CQL and uses v1 endpoint', async () => {
+    it('prepends type = "page" filter and uses v1 endpoint', async () => {
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(rawSearchResponse([])));
 
-      await client.searchPages({ cql: 'type = page AND space = "DEV"' });
+      await client.searchPages({ cql: 'space = "DEV"' });
 
-      const url = fetchSpy.mock.calls[0][0] as string;
-      expect(url).toContain(`${V1}/content/search?`);
-      expect(url).toContain('cql=');
+      const url = new URL(fetchSpy.mock.calls[0][0] as string);
+      expect(url.pathname).toBe('/wiki/rest/api/content/search');
+      expect(url.searchParams.get('cql')).toBe('type = "page" AND space = "DEV"');
     });
 
-    it('flattens v1 response into flat SearchResult items', async () => {
+    it('parses v1 content search response', async () => {
       const raw = rawSearchResponse([
-        { id: '1', title: 'Page 1', excerpt: 'Excerpt 1', url: '/wiki/page1' },
-        { id: '2', title: 'Page 2', excerpt: 'Excerpt 2', url: '/wiki/page2' }
+        { id: '1', title: 'Page 1' },
+        { id: '2', title: 'Page 2' }
       ]);
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(raw));
 
       const result = await client.searchPages({ cql: 'type = page' });
 
       expect(result.results).toEqual([
-        { id: '1', title: 'Page 1', excerpt: 'Excerpt 1', url: '/wiki/page1' },
-        { id: '2', title: 'Page 2', excerpt: 'Excerpt 2', url: '/wiki/page2' }
+        expect.objectContaining({ id: '1', title: 'Page 1' }),
+        expect.objectContaining({ id: '2', title: 'Page 2' })
       ]);
     });
 

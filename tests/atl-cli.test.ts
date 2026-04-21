@@ -198,13 +198,57 @@ describe('atl-cli', () => {
   // ── confluence pages get ────────────────────────────────────
 
   describe('confluence pages get', () => {
-    it('prints page JSON', async () => {
+    it('fetches by ID when argument is numeric', async () => {
       mockConfluence.getPage.mockResolvedValue({ id: '123', title: 'Hello' });
 
       const { logs } = await run(['confluence', 'pages', 'get', '123']);
 
       expect(mockConfluence.getPage).toHaveBeenCalledWith('123');
+      expect(mockConfluence.searchPages).not.toHaveBeenCalled();
       expect(logs[0]).toContain('"id": "123"');
+    });
+
+    it('searches by title when argument is not numeric', async () => {
+      mockConfluence.searchPages.mockResolvedValue({ results: [{ id: '42', title: 'My Page', excerpt: '', url: '' }] });
+      mockConfluence.getPage.mockResolvedValue({ id: '42', title: 'My Page' });
+
+      await run(['confluence', 'pages', 'get', 'My Page']);
+
+      expect(mockConfluence.searchPages).toHaveBeenCalledWith({ cql: 'title = "My Page"' });
+      expect(mockConfluence.getPage).toHaveBeenCalledWith('42');
+    });
+
+    it('scopes CQL to space when --space is provided', async () => {
+      mockConfluence.searchPages.mockResolvedValue({ results: [{ id: '42', title: 'My Page', excerpt: '', url: '' }] });
+      mockConfluence.getPage.mockResolvedValue({ id: '42', title: 'My Page' });
+
+      await run(['confluence', 'pages', 'get', 'My Page', '--space', 'DEV']);
+
+      expect(mockConfluence.searchPages).toHaveBeenCalledWith({ cql: 'title = "My Page" AND space = "DEV"' });
+    });
+
+    it('throws when no pages match title', async () => {
+      mockConfluence.searchPages.mockResolvedValue({ results: [] });
+
+      const { rejection } = await run(['confluence', 'pages', 'get', 'Missing']);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('No page found with title "Missing"');
+    });
+
+    it('throws when multiple pages match title', async () => {
+      mockConfluence.searchPages.mockResolvedValue({
+        results: [
+          { id: '1', title: 'Dup', excerpt: '', url: '' },
+          { id: '2', title: 'Dup', excerpt: '', url: '' }
+        ]
+      });
+
+      const { rejection } = await run(['confluence', 'pages', 'get', 'Dup']);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('Multiple pages match title "Dup"');
+      expect((rejection as AppError).message).toContain('Use --space to narrow or use the page ID');
     });
 
     it('includes remediation hint on missing credentials', async () => {
