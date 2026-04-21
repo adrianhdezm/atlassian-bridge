@@ -81,6 +81,15 @@ atl confluence spaces tree <idOrKey> [--depth]
 
 Global flags: `--help`, `--version`, `-v/--verbose`
 
+## Available Skills
+
+Agent skills that let your AI agent interact with Jira and Confluence directly.
+
+| Skill          | Install                                                  |
+| -------------- | -------------------------------------------------------- |
+| **Jira**       | `npx skills add adrianhdezm/atlassian-bridge jira`       |
+| **Confluence** | `npx skills add adrianhdezm/atlassian-bridge confluence` |
+
 ## Development
 
 ### Prerequisites

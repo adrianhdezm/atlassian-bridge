@@ -1,0 +1,49 @@
+---
+name: jira
+description: Interact with Atlassian Jira via the atl CLI — read, create, update, delete, and search issues, and browse projects. Use when the user wants to work with Jira content (e.g. "get the issue", "create a Jira ticket", "search Jira", "list projects").
+---
+
+# Jira (atl CLI)
+
+## Prerequisites
+
+Before running any Jira command, verify the CLI is available and authenticated:
+
+1. Run `atl --version`. If it fails, stop and tell the user:
+
+   > The `atl` CLI is not installed. Install it with `npm i -g @ai-foundry/atlassian-bridge` and then run `atl auth login`.
+   >
+   > **Note:** `atl` is NOT the official Atlassian CLI. It is a community project (`@ai-foundry/atlassian-bridge`).
+
+2. Run `atl auth status`. If not authenticated, stop and tell the user:
+   > You are not logged in. Run `atl auth login` to authenticate with your Atlassian account.
+
+Only proceed once both checks pass.
+
+## Available Commands
+
+### Issues
+
+| Action   | Command                                                                                                                          |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Get      | `atl jira issues get <issueKey>`                                                                                                 |
+| Create   | `atl jira issues create <summary> --project <key> --type <name> [--description <adf>] [--parent <key>] [--labels <csv>]`         |
+| Update   | `atl jira issues update <issueKey> [--summary <text>] [--description <adf>] [--parent <key>] [--labels <csv>] [--status <name>]` |
+| Delete   | `atl jira issues delete <issueKey>`                                                                                              |
+| Search   | `atl jira issues search <jql> [--limit <n>] [--cursor <token>] [--fields <csv>]`                                                 |
+| Children | `atl jira issues children <issueKey>`                                                                                            |
+
+### Projects
+
+| Action | Command                                                                    |
+| ------ | -------------------------------------------------------------------------- |
+| Get    | `atl jira projects get <keyOrId>`                                          |
+| List   | `atl jira projects list [--limit <n>] [--cursor <token>] [--query <text>]` |
+
+## Guidelines
+
+- When the user mentions an issue, expect a key like `PROJ-123`. Use it directly with `atl jira issues get`.
+- For search, build a valid JQL query from the user's intent (e.g. `project = PIXEL AND status = "In Progress" AND assignee = currentUser()`).
+- When creating issues, `--project` and `--type` are required. Common types: `Task`, `Bug`, `Story`, `Epic`, `Sub-task`.
+- When creating or updating issues with `--description`, the value must be valid ADF (Atlassian Document Format) JSON.
+- Always show the user the command you are about to run before executing it.
