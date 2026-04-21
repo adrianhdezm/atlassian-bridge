@@ -121,7 +121,7 @@ export function buildProgram(configDir?: string): Program {
     .description('Create a new page')
     .argument('<title>', 'Page title')
     .option('--space <id>', 'Space ID or key')
-    .option('--parent-id <id>', 'Parent page ID')
+    .option('--parent <id>', 'Parent page ID')
     .option('--body <adf>', 'ADF JSON body string')
     .action(async (args, opts) => {
       const creds = loadCredentials();
@@ -130,7 +130,7 @@ export function buildProgram(configDir?: string): Program {
       if (!space) {
         throw new AppError('--space is required');
       }
-      const parentId = opts['parent-id'] as string | undefined;
+      const parentId = opts['parent'] as string | undefined;
       const body = (opts['body'] as string | undefined) ?? '{"version":1,"type":"doc","content":[]}';
       const result = await client.createPage({
         spaceIdOrKey: space,
@@ -147,12 +147,14 @@ export function buildProgram(configDir?: string): Program {
     .argument('<pageId>', 'Page ID')
     .option('--title <title>', 'New title')
     .option('--body <adf>', 'New ADF body')
+    .option('--parent <id>', 'Parent page ID')
     .action(async (args, opts) => {
       const creds = loadCredentials();
       const client = new ConfluenceClient(creds);
       const pageId = args['pageId'] as string;
       const titleOpt = opts['title'] as string | undefined;
       const bodyOpt = opts['body'] as string | undefined;
+      const parent = opts['parent'] as string | undefined;
 
       let title: string;
       let body: string;
@@ -166,7 +168,7 @@ export function buildProgram(configDir?: string): Program {
         body = bodyOpt;
       }
 
-      const result = await client.updatePage(pageId, { title, body });
+      const result = await client.updatePage(pageId, { title, body, ...(parent !== undefined ? { parentId: parent } : {}) });
       console.log(JSON.stringify(formatPage(result), null, 2));
     });
 

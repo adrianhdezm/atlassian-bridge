@@ -46,6 +46,7 @@ export interface CreatePageAttrs {
 export interface UpdatePageAttrs {
   title: string;
   body: string;
+  parentId?: string;
 }
 
 export interface SearchPagesOptions {
@@ -148,22 +149,27 @@ export class ConfluenceClient {
 
     const current = await this.getPage(pageId);
 
+    const reqBody: Record<string, unknown> = {
+      id: pageId,
+      status: 'current',
+      title: input.title,
+      body: {
+        representation: 'atlas_doc_format',
+        value: normalizedBody
+      },
+      version: {
+        number: current.version.number + 1,
+        message: 'Updated via CLI'
+      }
+    };
+    if (input.parentId !== undefined) {
+      reqBody['parentId'] = input.parentId;
+    }
+
     return fetchJsonObject(PageSchema, `${this.v2Url}/pages/${pageId}`, {
       method: 'PUT',
       headers: this.headers,
-      body: JSON.stringify({
-        id: pageId,
-        status: 'current',
-        title: input.title,
-        body: {
-          representation: 'atlas_doc_format',
-          value: normalizedBody
-        },
-        version: {
-          number: current.version.number + 1,
-          message: 'Updated via CLI'
-        }
-      })
+      body: JSON.stringify(reqBody)
     });
   }
 

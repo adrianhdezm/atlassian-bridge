@@ -278,6 +278,32 @@ describe('confluence-client', () => {
 
       expect(fetchSpy).not.toHaveBeenCalled();
     });
+
+    it('includes parentId in body when provided', async () => {
+      const currentPage = makePage({ id: '42', version: { number: 3, message: '', authorId: 'user1' } });
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(jsonResponse(currentPage))
+        .mockResolvedValue(jsonResponse(makePage({ id: '42' })));
+
+      await client.updatePage('42', { title: 'Updated', body: validAdf, parentId: '99' });
+
+      const body = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string) as Record<string, unknown>;
+      expect(body.parentId).toBe('99');
+    });
+
+    it('omits parentId from body when not provided', async () => {
+      const currentPage = makePage({ id: '42', version: { number: 3, message: '', authorId: 'user1' } });
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(jsonResponse(currentPage))
+        .mockResolvedValue(jsonResponse(makePage({ id: '42' })));
+
+      await client.updatePage('42', { title: 'Updated', body: validAdf });
+
+      const body = JSON.parse(fetchSpy.mock.calls[1][1]!.body as string) as Record<string, unknown>;
+      expect(body).not.toHaveProperty('parentId');
+    });
   });
 
   describe('deletePage', () => {

@@ -264,7 +264,7 @@ describe('atl-cli', () => {
       mockConfluence.createPage.mockResolvedValue({ id: '1' });
       const body = '{"version":1,"type":"doc","content":[]}';
 
-      await run(['confluence', 'pages', 'create', 'My Page', '--space', 'DEV', '--parent-id', '99', '--body', body]);
+      await run(['confluence', 'pages', 'create', 'My Page', '--space', 'DEV', '--parent', '99', '--body', body]);
 
       expect(mockConfluence.createPage).toHaveBeenCalledWith({
         spaceIdOrKey: 'DEV',
@@ -310,6 +310,15 @@ describe('atl-cli', () => {
 
       expect(mockConfluence.getPage).not.toHaveBeenCalled();
       expect(mockConfluence.updatePage).toHaveBeenCalledWith('10', { title: 'New', body });
+    });
+
+    it('passes --parent as parentId', async () => {
+      mockConfluence.updatePage.mockResolvedValue({ id: '10' });
+      const body = '{"version":1,"type":"doc","content":[]}';
+
+      await run(['confluence', 'pages', 'update', '10', '--title', 'New', '--body', body, '--parent', '99']);
+
+      expect(mockConfluence.updatePage).toHaveBeenCalledWith('10', { title: 'New', body, parentId: '99' });
     });
   });
 

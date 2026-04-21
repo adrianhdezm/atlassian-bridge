@@ -11,8 +11,8 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | —            | `auth`     | `logout`      | —                  | —                                                                                  |
 | `confluence` | `pages`    | `get`         | `<pageId>`         | —                                                                                  |
 | `confluence` | `pages`    | `list`        | —                  | `--space`, `--title`, `--status`, `--limit`, `--cursor`                            |
-| `confluence` | `pages`    | `create`      | `<title>`          | `--space` **(req)**, `--parent-id`, `--body`                                       |
-| `confluence` | `pages`    | `update`      | `<pageId>`         | `--title`, `--body`                                                                |
+| `confluence` | `pages`    | `create`      | `<title>`          | `--space` **(req)**, `--parent`, `--body`                                          |
+| `confluence` | `pages`    | `update`      | `<pageId>`         | `--title`, `--body`, `--parent`                                                    |
 | `confluence` | `pages`    | `delete`      | `<pageId>`         | —                                                                                  |
 | `confluence` | `pages`    | `descendants` | `<pageId>`         | `--depth`, `--limit`                                                               |
 | `confluence` | `pages`    | `search`      | `<cql>`            | `--limit`, `--cursor`                                                              |
@@ -256,11 +256,11 @@ Create a new page.
 atl confluence pages create <title> [flags]
 ```
 
-| Flag               | Description                                   | Default                                     |
-| ------------------ | --------------------------------------------- | ------------------------------------------- |
-| `--space <id>`     | Space ID or key (**required at action time**) | —                                           |
-| `--parent-id <id>` | Parent page ID                                | —                                           |
-| `--body <adf>`     | ADF JSON body string                          | `'{"version":1,"type":"doc","content":[]}'` |
+| Flag            | Description                                   | Default                                     |
+| --------------- | --------------------------------------------- | ------------------------------------------- |
+| `--space <id>`  | Space ID or key (**required at action time**) | —                                           |
+| `--parent <id>` | Parent page ID                                | —                                           |
+| `--body <adf>`  | ADF JSON body string                          | `'{"version":1,"type":"doc","content":[]}'` |
 
 `--space` is required by the SDK. The action throws `AppError` if absent.
 
@@ -274,14 +274,15 @@ Update a page's title and/or body.
 atl confluence pages update <pageId> [flags]
 ```
 
-| Flag              | Description  |
-| ----------------- | ------------ |
-| `--title <title>` | New title    |
-| `--body <adf>`    | New ADF body |
+| Flag              | Description    |
+| ----------------- | -------------- |
+| `--title <title>` | New title      |
+| `--body <adf>`    | New ADF body   |
+| `--parent <id>`   | Parent page ID |
 
-The SDK's `UpdatePageAttrs` requires both `title` and `body`. When a flag is omitted, the action calls `getPage(pageId)` to read the current value and merges it with the provided flag. This means the page is fetched twice (once here, once inside `updatePage` for version management) — acceptable for correctness.
+The SDK's `UpdatePageAttrs` requires both `title` and `body`. When a flag is omitted, the action calls `getPage(pageId)` to read the current value and merges it with the provided flag. This means the page is fetched twice (once here, once inside `updatePage` for version management) — acceptable for correctness. `--parent` is optional and only sent when provided.
 
-SDK: `updatePage(pageId, { title, body })`
+SDK: `updatePage(pageId, { title, body, parentId })`
 
 #### `delete <pageId>`
 
@@ -519,7 +520,7 @@ ARGUMENTS
 
 FLAGS
       --space <id>         Space ID or key
-      --parent-id <id>     Parent page ID
+      --parent <id>        Parent page ID
       --body <adf>         ADF JSON body string
   -v, --verbose            Enable verbose output
       --help               Show help
