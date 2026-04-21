@@ -491,6 +491,75 @@ describe('atl-cli', () => {
       expect(mockJira.updateIssue).toHaveBeenCalledWith('PROJ-1', { summary: 'Changed' });
       expect(logs[0]).toContain('"key": "PROJ-1"');
     });
+
+    it('resolves --status transition name to ID and transitions before field update', async () => {
+      mockJira.getIssue.mockResolvedValue({
+        id: '1',
+        key: 'PROJ-1',
+        transitions: [
+          { id: '31', name: 'In Progress', to: { id: '3', name: 'In Progress' } },
+          { id: '41', name: 'Done', to: { id: '4', name: 'Done' } }
+        ]
+      });
+      mockJira.transitionIssue.mockResolvedValue(undefined);
+      mockJira.updateIssue.mockResolvedValue({ id: '1', key: 'PROJ-1', fields: { summary: 'Updated' } });
+
+      const { logs } = await run(['jira', 'issues', 'update', 'PROJ-1', '--status', 'Done', '--summary', 'Updated']);
+
+      expect(mockJira.getIssue).toHaveBeenCalledWith('PROJ-1');
+      expect(mockJira.transitionIssue).toHaveBeenCalledWith('PROJ-1', { transitionId: '41' });
+      expect(mockJira.updateIssue).toHaveBeenCalledWith('PROJ-1', { summary: 'Updated' });
+      expect(logs[0]).toContain('"key": "PROJ-1"');
+    });
+
+    it('resolves --status case-insensitively and picks first match', async () => {
+      mockJira.getIssue.mockResolvedValue({
+        id: '1',
+        key: 'PROJ-1',
+        transitions: [
+          { id: '31', name: 'done', to: { id: '3', name: 'Done' } },
+          { id: '41', name: 'Done', to: { id: '4', name: 'Done' } }
+        ]
+      });
+      mockJira.transitionIssue.mockResolvedValue(undefined);
+
+      await run(['jira', 'issues', 'update', 'PROJ-1', '--status', 'DONE']);
+
+      expect(mockJira.transitionIssue).toHaveBeenCalledWith('PROJ-1', { transitionId: '31' });
+    });
+
+    it('fetches post-transition issue when --status is the only flag', async () => {
+      const postTransitionIssue = { id: '1', key: 'PROJ-1', fields: { status: { name: 'Done' } } };
+      mockJira.getIssue
+        .mockResolvedValueOnce({
+          id: '1',
+          key: 'PROJ-1',
+          transitions: [{ id: '41', name: 'Done', to: { id: '4', name: 'Done' } }]
+        })
+        .mockResolvedValueOnce(postTransitionIssue);
+      mockJira.transitionIssue.mockResolvedValue(undefined);
+
+      const { logs } = await run(['jira', 'issues', 'update', 'PROJ-1', '--status', 'Done']);
+
+      expect(mockJira.getIssue).toHaveBeenCalledTimes(2);
+      expect(mockJira.updateIssue).not.toHaveBeenCalled();
+      expect(logs[0]).toContain('"key": "PROJ-1"');
+    });
+
+    it('throws AppError when --status does not match any transition', async () => {
+      mockJira.getIssue.mockResolvedValue({
+        id: '1',
+        key: 'PROJ-1',
+        transitions: [{ id: '31', name: 'In Progress', to: { id: '3', name: 'In Progress' } }]
+      });
+
+      const { rejection } = await run(['jira', 'issues', 'update', 'PROJ-1', '--status', 'NoSuch']);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('No transition matching "NoSuch"');
+      expect((rejection as AppError).message).toContain('In Progress');
+      expect(mockJira.transitionIssue).not.toHaveBeenCalled();
+    });
   });
 
   // ── jira issues delete / transitions / transition ───────────

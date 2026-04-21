@@ -302,20 +302,41 @@ export function buildProgram(configDir?: string): Program {
     .option('--description <adf>', 'ADF JSON object as string')
     .option('--parent <key>', 'Parent issue key')
     .option('--labels <labels>', 'Comma-separated labels')
+    .option('--status <name>', 'Transition name to execute')
     .action(async (args, opts) => {
       const creds = loadCredentials();
       const client = new JiraClient(creds);
+      const issueKey = args['issueKey'] as string;
       const summary = opts['summary'] as string | undefined;
       const description = opts['description'] as string | undefined;
       const parent = opts['parent'] as string | undefined;
       const labels = opts['labels'] as string | undefined;
-      const result = await client.updateIssue(args['issueKey'] as string, {
-        ...(summary !== undefined ? { summary } : {}),
-        ...(description !== undefined ? { description: JSON.parse(description) as object } : {}),
-        ...(parent !== undefined ? { parentKey: parent } : {}),
-        ...(labels !== undefined ? { labels: labels.split(',') } : {})
-      });
-      console.log(JSON.stringify(formatIssue(result), null, 2));
+      const status = opts['status'] as string | undefined;
+
+      if (status !== undefined) {
+        const issue = await client.getIssue(issueKey);
+        const transitions = issue.transitions ?? [];
+        const match = transitions.find((t) => t.name.toLowerCase() === status.toLowerCase());
+        if (!match) {
+          const available = transitions.map((t) => t.name).join(', ');
+          throw new AppError(`No transition matching "${status}". Available: ${available}`);
+        }
+        await client.transitionIssue(issueKey, { transitionId: match.id });
+      }
+
+      const hasFieldUpdate = summary !== undefined || description !== undefined || parent !== undefined || labels !== undefined;
+      if (hasFieldUpdate) {
+        const result = await client.updateIssue(issueKey, {
+          ...(summary !== undefined ? { summary } : {}),
+          ...(description !== undefined ? { description: JSON.parse(description) as object } : {}),
+          ...(parent !== undefined ? { parentKey: parent } : {}),
+          ...(labels !== undefined ? { labels: labels.split(',') } : {})
+        });
+        console.log(JSON.stringify(formatIssue(result), null, 2));
+      } else if (status !== undefined) {
+        const result = await client.getIssue(issueKey);
+        console.log(JSON.stringify(formatIssue(result), null, 2));
+      }
     });
 
   issues

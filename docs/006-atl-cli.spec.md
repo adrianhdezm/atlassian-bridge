@@ -20,7 +20,7 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | `confluence` | `spaces`   | `tree`        | `<spaceIdOrKey>`              | `--depth`                                                                          |
 | `jira`       | `issues`   | `get`         | `<issueKey>`                  | —                                                                                  |
 | `jira`       | `issues`   | `create`      | `<summary>`                   | `--project` **(req)**, `--type` **(req)**, `--description`, `--parent`, `--labels` |
-| `jira`       | `issues`   | `update`      | `<issueKey>`                  | `--summary`, `--description`, `--parent`, `--labels`                               |
+| `jira`       | `issues`   | `update`      | `<issueKey>`                  | `--summary`, `--description`, `--parent`, `--labels`, `--status`                   |
 | `jira`       | `issues`   | `delete`      | `<issueKey>`                  | —                                                                                  |
 | `jira`       | `issues`   | `transitions` | `<issueKey>`                  | —                                                                                  |
 | `jira`       | `issues`   | `transition`  | `<issueKey>` `<transitionId>` | —                                                                                  |
@@ -409,16 +409,29 @@ Update an issue. All flags optional — only provided fields are sent (partial u
 atl jira issues update <issueKey> [flags]
 ```
 
-| Flag                  | Description               |
-| --------------------- | ------------------------- |
-| `--summary <text>`    | New summary               |
-| `--description <adf>` | ADF JSON object as string |
-| `--parent <key>`      | Parent issue key          |
-| `--labels <labels>`   | Comma-separated labels    |
+| Flag                  | Description                |
+| --------------------- | -------------------------- |
+| `--summary <text>`    | New summary                |
+| `--description <adf>` | ADF JSON object as string  |
+| `--parent <key>`      | Parent issue key           |
+| `--labels <labels>`   | Comma-separated labels     |
+| `--status <name>`     | Transition name to execute |
 
 Same `--description` parse, `--labels` split, and `--parent` behavior as `create`.
 
-SDK: `updateIssue(issueKey, { summary, description, parentKey, labels })` → prints the updated issue as JSON
+##### Status transition via `--status`
+
+When `--status` is provided, the action resolves the transition name to a transition ID and executes it **before** the field update:
+
+1. Fetch the issue via `getIssue(issueKey)` — returns inline `transitions` array (already expanded).
+2. Find the first transition whose `name` matches `--status` (case-insensitive).
+3. If no match, throw `AppError` listing the available transition names.
+4. Call `transitionIssue(issueKey, { transitionId })` with the resolved ID.
+5. Proceed with the field update (`updateIssue`) if any other flags were provided, or call `getIssue` to fetch the post-transition state if no other flags were given.
+
+If `--status` is the only flag, the output is the post-transition issue (via `getIssue`). If combined with other flags, the output is the result of `updateIssue` (which already returns the updated issue).
+
+SDK: `getIssue(issueKey)` → `transitionIssue(issueKey, { transitionId })` → `updateIssue(issueKey, { summary, description, parentKey, labels })` → prints the updated issue as JSON
 
 #### `delete <issueKey>`
 
@@ -544,22 +557,22 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 
 ### Coverage
 
-| Command path                                 | Key cases                                                                      |
-| -------------------------------------------- | ------------------------------------------------------------------------------ |
-| `auth login`                                 | Saves credentials, throws on missing flags                                     |
-| `auth status`                                | Displays masked token, throws when unconfigured                                |
-| `auth logout`                                | Removes file, handles missing file                                             |
-| `confluence pages get`                       | Credential loading + remediation hint, SDK delegation                          |
-| `confluence pages list`                      | Default options, query param forwarding                                        |
-| `confluence pages create`                    | Required `--space` enforcement                                                 |
-| `confluence pages update`                    | Fetches current values when flags omitted                                      |
-| `confluence pages delete/descendants/search` | SDK delegation, option forwarding                                              |
-| `confluence spaces get`                      | SDK delegation, space ID or key                                                |
-| `confluence spaces tree`                     | SDK delegation, depth option                                                   |
-| `jira issues create`                         | Required `--project`/`--type`, `JSON.parse` on description, comma-split labels |
-| `jira issues update`                         | Partial update, description parse, parent key forwarding                       |
-| `jira issues delete/transitions/transition`  | SDK delegation, "Done" output                                                  |
-| `jira issues search`                         | JQL string, pagination params, comma-split fields                              |
-| `jira issues children`                       | Auto-pagination delegation                                                     |
-| `jira projects get`                          | SDK delegation, project key or ID                                              |
-| `jira projects list`                         | Default options, query filter                                                  |
+| Command path                                 | Key cases                                                                                                                                                                                                       |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth login`                                 | Saves credentials, throws on missing flags                                                                                                                                                                      |
+| `auth status`                                | Displays masked token, throws when unconfigured                                                                                                                                                                 |
+| `auth logout`                                | Removes file, handles missing file                                                                                                                                                                              |
+| `confluence pages get`                       | Credential loading + remediation hint, SDK delegation                                                                                                                                                           |
+| `confluence pages list`                      | Default options, query param forwarding                                                                                                                                                                         |
+| `confluence pages create`                    | Required `--space` enforcement                                                                                                                                                                                  |
+| `confluence pages update`                    | Fetches current values when flags omitted                                                                                                                                                                       |
+| `confluence pages delete/descendants/search` | SDK delegation, option forwarding                                                                                                                                                                               |
+| `confluence spaces get`                      | SDK delegation, space ID or key                                                                                                                                                                                 |
+| `confluence spaces tree`                     | SDK delegation, depth option                                                                                                                                                                                    |
+| `jira issues create`                         | Required `--project`/`--type`, `JSON.parse` on description, comma-split labels                                                                                                                                  |
+| `jira issues update`                         | Partial update, description parse, parent key forwarding, `--status` transition resolution (name→ID via `getIssue` transitions, case-insensitive first match, `AppError` on no match, transition before update) |
+| `jira issues delete/transitions/transition`  | SDK delegation, "Done" output                                                                                                                                                                                   |
+| `jira issues search`                         | JQL string, pagination params, comma-split fields                                                                                                                                                               |
+| `jira issues children`                       | Auto-pagination delegation                                                                                                                                                                                      |
+| `jira projects get`                          | SDK delegation, project key or ID                                                                                                                                                                               |
+| `jira projects list`                         | Default options, query filter                                                                                                                                                                                   |
