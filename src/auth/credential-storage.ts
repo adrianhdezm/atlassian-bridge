@@ -3,11 +3,17 @@ import path from 'node:path';
 import os from 'node:os';
 import { z } from 'zod';
 import { AppError } from '../shared/app-error.js';
+import { isMacOS, keychainSet, keychainGet, keychainDelete, KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT } from './keychain.js';
 
 const CredentialsSchema = z.object({
   baseUrl: z.string(),
   email: z.string(),
   apiToken: z.string()
+});
+
+const FileOnlySchema = z.object({
+  baseUrl: z.string(),
+  email: z.string()
 });
 
 export type Credentials = z.infer<typeof CredentialsSchema>;
@@ -35,7 +41,16 @@ export class CredentialStorage {
       const envValue = process.env[envVar];
       if (envValue !== undefined && envValue !== '') {
         result[key] = envValue;
-      } else if (file !== null) {
+      } else if (key === 'apiToken' && isMacOS()) {
+        const token = keychainGet(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT);
+        if (token !== null) {
+          result[key] = token;
+        } else if (file !== null && file[key] !== undefined) {
+          result[key] = file[key];
+        } else {
+          throw new AppError(`missing credential: ${label}`);
+        }
+      } else if (file !== null && file[key] !== undefined) {
         result[key] = file[key];
       } else {
         throw new AppError(`missing credential: ${label}`);
@@ -47,10 +62,22 @@ export class CredentialStorage {
 
   save(credentials: Credentials): void {
     fs.mkdirSync(this.configDir, { recursive: true });
-    fs.writeFileSync(this.filePath, JSON.stringify(credentials, null, 2));
+    if (isMacOS()) {
+      const { baseUrl, email } = credentials;
+      fs.writeFileSync(this.filePath, JSON.stringify({ baseUrl, email }, null, 2));
+      keychainSet(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT, credentials.apiToken);
+    } else {
+      fs.writeFileSync(this.filePath, JSON.stringify(credentials, null, 2));
+    }
   }
 
   clear(): boolean {
+    const fileRemoved = this.removeFile();
+    const keychainRemoved = isMacOS() ? keychainDelete(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT) : false;
+    return fileRemoved || keychainRemoved;
+  }
+
+  private removeFile(): boolean {
     try {
       fs.unlinkSync(this.filePath);
       return true;
@@ -62,7 +89,7 @@ export class CredentialStorage {
     }
   }
 
-  private readFile(): Credentials | null {
+  private readFile(): Partial<Credentials> | null {
     let raw: string;
     try {
       raw = fs.readFileSync(this.filePath, 'utf-8');
@@ -77,11 +104,12 @@ export class CredentialStorage {
       throw new AppError('invalid credentials file: malformed JSON');
     }
 
-    const result = CredentialsSchema.safeParse(parsed);
+    const schema = isMacOS() ? FileOnlySchema.passthrough() : CredentialsSchema;
+    const result = schema.safeParse(parsed);
     if (!result.success) {
       throw new AppError('invalid credentials file: missing or invalid fields');
     }
 
-    return result.data;
+    return result.data as Partial<Credentials>;
   }
 }

@@ -7,7 +7,7 @@ import { AppError } from '../src/shared/app-error.js';
 
 // ── SDK mocks ───────────────────────────────────────────────────
 
-const { mockConfluence, mockJira, mockExecSync } = vi.hoisted(() => ({
+const { mockConfluence, mockJira, mockExecSync, mockKeychain } = vi.hoisted(() => ({
   mockConfluence: {
     getPage: vi.fn(),
     getPages: vi.fn(),
@@ -32,7 +32,15 @@ const { mockConfluence, mockJira, mockExecSync } = vi.hoisted(() => ({
     getProject: vi.fn(),
     getProjects: vi.fn()
   },
-  mockExecSync: vi.fn()
+  mockExecSync: vi.fn(),
+  mockKeychain: {
+    isMacOS: vi.fn(() => false),
+    keychainSet: vi.fn(),
+    keychainGet: vi.fn(() => null as string | null),
+    keychainDelete: vi.fn(() => false),
+    KEYCHAIN_SERVICE: 'atl-cli',
+    KEYCHAIN_ACCOUNT: 'api-token'
+  }
 }));
 
 vi.mock('../src/confluence/confluence-client.js', () => ({
@@ -68,6 +76,8 @@ vi.mock('../src/jira/jira-client.js', () => ({
 vi.mock('node:child_process', () => ({
   execSync: mockExecSync
 }));
+
+vi.mock('../src/auth/keychain.js', () => mockKeychain);
 
 // ── helpers ─────────────────────────────────────────────────────
 

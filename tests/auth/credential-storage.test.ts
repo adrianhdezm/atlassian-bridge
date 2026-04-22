@@ -2,8 +2,20 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CredentialStorage } from '../../src/auth/credential-storage.js';
 import { AppError } from '../../src/shared/app-error.js';
+
+const mockKeychain = vi.hoisted(() => ({
+  isMacOS: vi.fn(() => false),
+  keychainSet: vi.fn(),
+  keychainGet: vi.fn(() => null as string | null),
+  keychainDelete: vi.fn(() => false),
+  KEYCHAIN_SERVICE: 'atl-cli',
+  KEYCHAIN_ACCOUNT: 'api-token'
+}));
+
+vi.mock('../../src/auth/keychain.js', () => mockKeychain);
+
+import { CredentialStorage } from '../../src/auth/credential-storage.js';
 
 function validCredentials() {
   return {
@@ -26,6 +38,10 @@ describe('credential-storage', () => {
       savedEnv[key] = process.env[key];
       delete process.env[key];
     }
+    mockKeychain.isMacOS.mockReturnValue(false);
+    mockKeychain.keychainSet.mockReset();
+    mockKeychain.keychainGet.mockReset().mockReturnValue(null);
+    mockKeychain.keychainDelete.mockReset().mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -38,6 +54,8 @@ describe('credential-storage', () => {
     }
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  // ── non-macOS (file-based, original behavior) ──────────────
 
   describe('load', () => {
     it('loads credentials from file when no env vars are set', () => {
@@ -122,6 +140,14 @@ describe('credential-storage', () => {
 
       expect(() => storage.load()).toThrow('invalid credentials file: missing or invalid fields');
     });
+
+    it('does not call keychain functions when not on macOS', () => {
+      fs.writeFileSync(path.join(tmpDir, 'credentials.json'), JSON.stringify(validCredentials()));
+
+      storage.load();
+
+      expect(mockKeychain.keychainGet).not.toHaveBeenCalled();
+    });
   });
 
   describe('save', () => {
@@ -150,6 +176,12 @@ describe('credential-storage', () => {
       const raw = fs.readFileSync(path.join(tmpDir, 'credentials.json'), 'utf-8');
       expect(JSON.parse(raw)).toEqual(updated);
     });
+
+    it('does not call keychain functions when not on macOS', () => {
+      storage.save(validCredentials());
+
+      expect(mockKeychain.keychainSet).not.toHaveBeenCalled();
+    });
   });
 
   describe('clear', () => {
@@ -177,6 +209,150 @@ describe('credential-storage', () => {
       expect(() => storage.clear()).toThrow(eacces);
 
       vi.restoreAllMocks();
+    });
+
+    it('does not call keychain functions when not on macOS', () => {
+      storage.clear();
+
+      expect(mockKeychain.keychainDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── macOS Keychain ─────────────────────────────────────────
+
+  describe('macOS Keychain', () => {
+    beforeEach(() => {
+      mockKeychain.isMacOS.mockReturnValue(true);
+    });
+
+    describe('save', () => {
+      it('writes only baseUrl and email to file', () => {
+        storage.save(validCredentials());
+
+        const raw = fs.readFileSync(path.join(tmpDir, 'credentials.json'), 'utf-8');
+        const file = JSON.parse(raw) as Record<string, unknown>;
+        expect(file['baseUrl']).toBe('https://test.atlassian.net');
+        expect(file['email']).toBe('user@example.com');
+        expect(file).not.toHaveProperty('apiToken');
+      });
+
+      it('stores apiToken in Keychain', () => {
+        storage.save(validCredentials());
+
+        expect(mockKeychain.keychainSet).toHaveBeenCalledWith('atl-cli', 'api-token', 'token123');
+      });
+
+      it('propagates Keychain errors as AppError', () => {
+        mockKeychain.keychainSet.mockImplementation(() => {
+          throw new AppError('failed to save API token to Keychain');
+        });
+
+        expect(() => storage.save(validCredentials())).toThrow(AppError);
+        expect(() => storage.save(validCredentials())).toThrow('failed to save API token to Keychain');
+      });
+    });
+
+    describe('load', () => {
+      it('reads baseUrl and email from file, apiToken from Keychain', () => {
+        fs.writeFileSync(
+          path.join(tmpDir, 'credentials.json'),
+          JSON.stringify({ baseUrl: 'https://test.atlassian.net', email: 'user@example.com' })
+        );
+        mockKeychain.keychainGet.mockReturnValue('keychain-token');
+
+        const result = storage.load();
+
+        expect(result).toEqual({
+          baseUrl: 'https://test.atlassian.net',
+          email: 'user@example.com',
+          apiToken: 'keychain-token'
+        });
+      });
+
+      it('env var overrides Keychain for apiToken', () => {
+        fs.writeFileSync(
+          path.join(tmpDir, 'credentials.json'),
+          JSON.stringify({ baseUrl: 'https://test.atlassian.net', email: 'user@example.com' })
+        );
+        process.env['ATLASSIAN_API_TOKEN'] = 'env-token';
+
+        const result = storage.load();
+
+        expect(result.apiToken).toBe('env-token');
+        expect(mockKeychain.keychainGet).not.toHaveBeenCalled();
+      });
+
+      it('falls back to file apiToken when Keychain has no entry (migration)', () => {
+        fs.writeFileSync(path.join(tmpDir, 'credentials.json'), JSON.stringify(validCredentials()));
+        mockKeychain.keychainGet.mockReturnValue(null);
+
+        const result = storage.load();
+
+        expect(result.apiToken).toBe('token123');
+      });
+
+      it('throws AppError when apiToken is missing from both Keychain and file', () => {
+        fs.writeFileSync(
+          path.join(tmpDir, 'credentials.json'),
+          JSON.stringify({ baseUrl: 'https://test.atlassian.net', email: 'user@example.com' })
+        );
+        mockKeychain.keychainGet.mockReturnValue(null);
+
+        expect(() => storage.load()).toThrow(AppError);
+        expect(() => storage.load()).toThrow('missing credential: API token');
+      });
+
+      it('accepts file with only baseUrl and email on macOS', () => {
+        fs.writeFileSync(
+          path.join(tmpDir, 'credentials.json'),
+          JSON.stringify({ baseUrl: 'https://test.atlassian.net', email: 'user@example.com' })
+        );
+        mockKeychain.keychainGet.mockReturnValue('kc-tok');
+
+        const result = storage.load();
+
+        expect(result.baseUrl).toBe('https://test.atlassian.net');
+        expect(result.email).toBe('user@example.com');
+        expect(result.apiToken).toBe('kc-tok');
+      });
+    });
+
+    describe('clear', () => {
+      it('removes both file and Keychain entry', () => {
+        storage.save(validCredentials());
+        mockKeychain.keychainDelete.mockReturnValue(true);
+
+        const result = storage.clear();
+
+        expect(result).toBe(true);
+        expect(fs.existsSync(path.join(tmpDir, 'credentials.json'))).toBe(false);
+        expect(mockKeychain.keychainDelete).toHaveBeenCalledWith('atl-cli', 'api-token');
+      });
+
+      it('returns true when only Keychain entry exists', () => {
+        mockKeychain.keychainDelete.mockReturnValue(true);
+
+        const result = storage.clear();
+
+        expect(result).toBe(true);
+      });
+
+      it('returns true when only file exists', () => {
+        storage.save(validCredentials());
+        mockKeychain.keychainDelete.mockReturnValue(false);
+
+        const result = storage.clear();
+
+        expect(result).toBe(true);
+      });
+
+      it('returns false when neither file nor Keychain entry exists', () => {
+        mockKeychain.keychainDelete.mockReturnValue(false);
+
+        const result = storage.clear();
+
+        expect(result).toBe(false);
+      });
     });
   });
 });

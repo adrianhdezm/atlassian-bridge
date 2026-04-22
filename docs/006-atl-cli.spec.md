@@ -138,7 +138,7 @@ See `004-jira-sdk.spec.md` and `003-confluence-sdk.spec.md` for the full list of
 
 ## Async Error Handling
 
-Most actions are async (SDK calls return promises). Auth actions (`login`, `status`, `logout`) are synchronous since credential storage is file-based. The framework fires actions with `void action(...)` (fire-and-forget), so `main.ts` registers a global `unhandledRejection` handler before calling `parse()`. This handler catches HTTP errors, Zod validation errors, and missing env var errors uniformly. Because it lives in `main.ts`, it never runs when tests import `buildProgram` from `atl-cli.ts`.
+Most actions are async (SDK calls return promises). Auth actions (`login`, `status`, `logout`) are synchronous since credential storage is file/Keychain-based. The framework fires actions with `void action(...)` (fire-and-forget), so `main.ts` registers a global `unhandledRejection` handler before calling `parse()`. This handler catches HTTP errors, Zod validation errors, and missing env var errors uniformly. Because it lives in `main.ts`, it never runs when tests import `buildProgram` from `atl-cli.ts`.
 
 ## Namespaces
 
@@ -159,7 +159,7 @@ const auth = program.command('auth').description('Manage authentication');
 
 #### `login`
 
-Save credentials to `~/.atl-cli/credentials.json`.
+Save credentials. On macOS, stores the API token in the system Keychain and writes `baseUrl`/`email` to `~/.atl-cli/credentials.json`. On other platforms, writes all three fields to the JSON file.
 
 ```
 atl auth login --base-url <url> --email <email> --token <token>
@@ -191,13 +191,13 @@ Token:     ****abcd
 
 #### `logout`
 
-Remove stored credentials file.
+Remove stored credentials.
 
 ```
 atl auth logout
 ```
 
-Calls `CredentialStorage.clear()`. Prints `"Credentials removed."` if the file existed, `"No stored credentials found."` otherwise. Does **not** affect environment variables.
+Calls `CredentialStorage.clear()`. On macOS, removes both the credentials file and the Keychain entry. Prints `"Credentials removed."` if either existed, `"No stored credentials found."` otherwise. Does **not** affect environment variables.
 
 ---
 
