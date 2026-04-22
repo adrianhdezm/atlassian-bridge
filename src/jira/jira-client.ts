@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fetchAll, fetchJsonObject, HttpError } from '../http-client/http-client.js';
+import { fetchAll, fetchBinary, fetchJsonObject, HttpError } from '../http-client/http-client.js';
 import { AdfSchema } from '../shared/adf-schema.js';
 import {
   IssueSchema,
@@ -7,9 +7,10 @@ import {
   TransitionSchema,
   IssueSearchResultSchema,
   PaginatedProjectsSchema,
-  ProjectSchema
+  ProjectSchema,
+  AttachmentSchema
 } from './jira-models.js';
-import type { Issue, CreatedIssue, Transition, IssueSearchResult, PaginatedProjects, Project } from './jira-models.js';
+import type { Issue, CreatedIssue, Transition, IssueSearchResult, PaginatedProjects, Project, Attachment } from './jira-models.js';
 
 const TransitionsResponseSchema = z.object({
   transitions: z.array(TransitionSchema)
@@ -240,6 +241,23 @@ export class JiraClient {
       },
       getItems: (page) => page.issues,
       getCursor: (page) => page.nextPageToken
+    });
+  }
+
+  async getIssueAttachments(issueIdOrKey: string): Promise<Attachment[]> {
+    const issue = await this.getIssue(issueIdOrKey);
+    return issue.fields.attachment ?? [];
+  }
+
+  async getAttachment(attachmentId: string): Promise<Attachment> {
+    return fetchJsonObject(AttachmentSchema, `${this.apiUrl}/attachment/${attachmentId}`, {
+      headers: this.headers
+    });
+  }
+
+  async getAttachmentContent(contentUrl: string): Promise<ArrayBuffer> {
+    return fetchBinary(contentUrl, {
+      headers: this.headers
     });
   }
 }

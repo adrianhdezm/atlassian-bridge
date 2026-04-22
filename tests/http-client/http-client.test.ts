@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
-import { fetchAll, fetchJsonObject } from '../../src/http-client/http-client.js';
+import { fetchAll, fetchBinary, fetchJsonObject } from '../../src/http-client/http-client.js';
 
 const TestSchema = z.object({
   id: z.string(),
@@ -275,6 +275,62 @@ describe('http-client', () => {
       );
 
       expect(consoleSpy).toHaveBeenCalledWith({ message: 'forbidden' });
+    });
+  });
+
+  describe('fetchBinary', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('returns ArrayBuffer for a valid response', async () => {
+      const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(bytes, { status: 200 }));
+
+      const result = await fetchBinary('https://api.example.com/file', { retry: { maxRetries: 0 } });
+
+      expect(new Uint8Array(result)).toEqual(bytes);
+    });
+
+    it('retries on retryable HTTP statuses', async () => {
+      const bytes = new Uint8Array([1, 2, 3]);
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(new Response(null, { status: 503, statusText: 'Service Unavailable' }))
+        .mockResolvedValue(new Response(bytes, { status: 200 }));
+
+      const result = await fetchBinary('https://api.example.com/file', {
+        retry: { maxRetries: 2, initialDelayMs: 1, maxDelayMs: 1 }
+      });
+
+      expect(new Uint8Array(result)).toEqual(bytes);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry on non-retryable 4xx errors', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404, statusText: 'Not Found' }));
+
+      await expect(
+        fetchBinary('https://api.example.com/file', {
+          retry: { maxRetries: 3, initialDelayMs: 1, maxDelayMs: 1 }
+        })
+      ).rejects.toThrow('Request failed with status 404 | Not Found');
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards init options to fetch (excluding retry)', async () => {
+      const bytes = new Uint8Array([1]);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(bytes, { status: 200 }));
+
+      await fetchBinary('https://api.example.com/file', {
+        headers: { Authorization: 'Basic abc' },
+        retry: { maxRetries: 0 }
+      });
+
+      expect(fetchSpy).toHaveBeenCalledWith('https://api.example.com/file', {
+        headers: { Authorization: 'Basic abc' }
+      });
     });
   });
 });

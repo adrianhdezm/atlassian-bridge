@@ -31,6 +31,11 @@ export class JiraClient {
   updateIssue(issueIdOrKey: string, input: UpdateIssueAttrs): Promise<Issue>;
   deleteIssue(issueIdOrKey: string): Promise<void>;
 
+  // Attachments
+  getIssueAttachments(issueIdOrKey: string): Promise<Attachment[]>;
+  getAttachment(attachmentId: string): Promise<Attachment>;
+  getAttachmentContent(contentUrl: string): Promise<ArrayBuffer>;
+
   // Transitions
   getTransitions(issueIdOrKey: string): Promise<Transition[]>;
   transitionIssue(issueIdOrKey: string, input: TransitionIssueAttrs): Promise<void>;
@@ -396,6 +401,20 @@ Offset-based pagination. Appends `query` when provided for name-based filtering.
 
 Auto-paginates via `fetchAll` from `http-client.ts` — the `getCursor` callback extracts `nextPageToken` and the `fetchPage` callback appends it as a query parameter. Uses `maxResults: 100` as the internal page size. Returns a flat `Issue[]`.
 
+### getIssueAttachments
+
+Convenience method — calls `getIssue(issueIdOrKey)` and returns `issue.fields.attachment ?? []`. No separate API call; reuses the existing issue fetch which already requests the `attachment` field.
+
+### getAttachment
+
+`GET /rest/api/3/attachment/{attachmentId}`
+
+Fetches a single attachment's metadata by its numeric ID. Returns `Attachment` (same schema as the entries in `fields.attachment`). Uses `fetchJsonObject` with `AttachmentSchema`.
+
+### getAttachmentContent
+
+Downloads the binary content of an attachment. Accepts the full `content` URL from the attachment metadata (e.g. `https://your-domain.atlassian.net/rest/api/3/attachment/content/121181`). Uses `fetchBinary` from `http-client.ts` with the instance's auth headers. Returns raw `ArrayBuffer`.
+
 ## Usage
 
 ```ts
@@ -464,4 +483,4 @@ Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additi
 
 ## Testing
 
-Tests in `tests/jira/jira-client.test.ts` and `tests/jira/jira-format.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, parent key wrapping, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`).
+Tests in `tests/jira/jira-client.test.ts` and `tests/jira/jira-format.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, parent key wrapping, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`), getIssueAttachments (returns attachment array from issue, empty array when no attachments), getAttachment (fetches single attachment metadata by ID), getAttachmentContent (downloads binary content as ArrayBuffer).

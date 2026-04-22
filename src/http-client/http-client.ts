@@ -79,3 +79,28 @@ export async function fetchJsonObject<TData>(
     return schema.parse(json);
   }, retryOptions);
 }
+
+export async function fetchBinary(input: string | URL | Request, init?: RequestInit & { retry?: RetryOptions }): Promise<ArrayBuffer> {
+  const { retry, ...restInit } = init ?? {};
+
+  const retryOptions: Parameters<typeof retryWithBackoff>[1] = { shouldRetry };
+  if (retry?.maxRetries !== undefined) {
+    retryOptions.maxRetries = retry.maxRetries;
+  }
+  if (retry?.initialDelayMs !== undefined) {
+    retryOptions.initialDelayMs = retry.initialDelayMs;
+  }
+  if (retry?.maxDelayMs !== undefined) {
+    retryOptions.maxDelayMs = retry.maxDelayMs;
+  }
+
+  return retryWithBackoff(async () => {
+    const response = await fetch(input, restInit);
+
+    if (!response.ok) {
+      throw new HttpError(response.status, response.statusText);
+    }
+
+    return response.arrayBuffer();
+  }, retryOptions);
+}

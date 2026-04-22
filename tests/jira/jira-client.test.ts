@@ -609,4 +609,72 @@ describe('jira-client', () => {
       expect(result[1].key).toBe('PROJ-3');
     });
   });
+
+  describe('getIssueAttachments', () => {
+    it('returns attachment array from issue', async () => {
+      const attachments = [
+        {
+          id: '100',
+          filename: 'file.png',
+          mimeType: 'image/png',
+          size: 1024,
+          created: '2026-01-01',
+          self: `${API}/attachment/100`,
+          content: `${API}/attachment/content/100`
+        }
+      ];
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse(makeIssue({ fields: { ...makeIssue().fields, attachment: attachments } }))
+      );
+
+      const result = await client.getIssueAttachments('PROJ-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('100');
+      expect(result[0].filename).toBe('file.png');
+    });
+
+    it('returns empty array when issue has no attachments', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(makeIssue()));
+
+      const result = await client.getIssueAttachments('PROJ-1');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('getAttachment', () => {
+    it('fetches attachment metadata by ID', async () => {
+      const attachment = {
+        id: '100',
+        filename: 'file.png',
+        mimeType: 'image/png',
+        size: 1024,
+        created: '2026-01-01',
+        self: `${API}/attachment/100`,
+        content: `${API}/attachment/content/100`
+      };
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(attachment));
+
+      const result = await client.getAttachment('100');
+
+      expect(fetchSpy.mock.calls[0][0]).toContain(`${API}/attachment/100`);
+      expect(result.id).toBe('100');
+      expect(result.filename).toBe('file.png');
+      expect(result.content).toBe(`${API}/attachment/content/100`);
+    });
+  });
+
+  describe('getAttachmentContent', () => {
+    it('downloads binary content from URL', async () => {
+      const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(bytes, { status: 200 }));
+
+      const result = await client.getAttachmentContent(`${API}/attachment/content/100`);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/attachment/content/100`);
+      expect(new Uint8Array(result)).toEqual(bytes);
+    });
+  });
 });

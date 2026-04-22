@@ -29,6 +29,9 @@ const { mockConfluence, mockJira, mockExecSync, mockKeychain } = vi.hoisted(() =
     transitionIssue: vi.fn(),
     searchIssues: vi.fn(),
     getChildIssues: vi.fn(),
+    getIssueAttachments: vi.fn(),
+    getAttachment: vi.fn(),
+    getAttachmentContent: vi.fn(),
     getProject: vi.fn(),
     getProjects: vi.fn()
   },
@@ -68,6 +71,9 @@ vi.mock('../src/jira/jira-client.js', () => ({
     transitionIssue = mockJira.transitionIssue;
     searchIssues = mockJira.searchIssues;
     getChildIssues = mockJira.getChildIssues;
+    getIssueAttachments = mockJira.getIssueAttachments;
+    getAttachment = mockJira.getAttachment;
+    getAttachmentContent = mockJira.getAttachmentContent;
     getProject = mockJira.getProject;
     getProjects = mockJira.getProjects;
   }
@@ -658,6 +664,71 @@ describe('atl-cli', () => {
 
       expect(mockJira.getChildIssues).toHaveBeenCalledWith('PROJ-1');
       expect(logs[0]).toBe('[]');
+    });
+  });
+
+  // ── jira issues list-attachments ───────────────────────────
+
+  describe('jira issues list-attachments', () => {
+    it('returns attachment metadata with only id, filename, mimeType, size', async () => {
+      mockJira.getIssueAttachments.mockResolvedValue([
+        {
+          id: '100',
+          filename: 'file.png',
+          mimeType: 'image/png',
+          size: 1024,
+          created: '2026-01-01',
+          self: 'https://x.atlassian.net/rest/api/3/attachment/100',
+          content: 'https://x.atlassian.net/rest/api/3/attachment/content/100'
+        }
+      ]);
+
+      const { logs } = await run(['jira', 'issues', 'list-attachments', 'PROJ-1']);
+
+      expect(mockJira.getIssueAttachments).toHaveBeenCalledWith('PROJ-1');
+      const output = JSON.parse(logs[0]) as unknown[];
+      expect(output).toHaveLength(1);
+      const item = output[0] as Record<string, unknown>;
+      expect(item).toEqual({ id: '100', filename: 'file.png', mimeType: 'image/png', size: 1024 });
+      expect(item).not.toHaveProperty('created');
+      expect(item).not.toHaveProperty('self');
+      expect(item).not.toHaveProperty('content');
+    });
+
+    it('returns empty array when no attachments', async () => {
+      mockJira.getIssueAttachments.mockResolvedValue([]);
+
+      const { logs } = await run(['jira', 'issues', 'list-attachments', 'PROJ-1']);
+
+      expect(logs[0]).toBe('[]');
+    });
+  });
+
+  // ── jira issues get-attachment ─────────────────────────────
+
+  describe('jira issues get-attachment', () => {
+    it('returns base64-encoded attachment content', async () => {
+      mockJira.getAttachment.mockResolvedValue({
+        id: '100',
+        filename: 'file.png',
+        mimeType: 'image/png',
+        size: 4,
+        created: '2026-01-01',
+        self: 'https://x.atlassian.net/rest/api/3/attachment/100',
+        content: 'https://x.atlassian.net/rest/api/3/attachment/content/100'
+      });
+      const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+      mockJira.getAttachmentContent.mockResolvedValue(bytes.buffer);
+
+      const { logs } = await run(['jira', 'issues', 'get-attachment', '100']);
+
+      expect(mockJira.getAttachment).toHaveBeenCalledWith('100');
+      expect(mockJira.getAttachmentContent).toHaveBeenCalledWith('https://x.atlassian.net/rest/api/3/attachment/content/100');
+      const output = JSON.parse(logs[0]) as Record<string, unknown>;
+      expect(output['id']).toBe('100');
+      expect(output['filename']).toBe('file.png');
+      expect(output['mimeType']).toBe('image/png');
+      expect(output['contentUrl']).toBe(`data:image/png;base64,${Buffer.from(bytes).toString('base64')}`);
     });
   });
 

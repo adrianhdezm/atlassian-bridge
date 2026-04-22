@@ -36,7 +36,7 @@ export const IssueLinkSchema = z.looseObject({
 export type IssueLink = z.infer<typeof IssueLinkSchema>;
 
 export const AttachmentSchema = z.looseObject({
-  id: z.string(),
+  id: z.coerce.string(),
   filename: z.string(),
   mimeType: z.string(),
   size: z.number(),

@@ -30,6 +30,14 @@ export async function fetchAll<TPage, TItem>(options: {
 
 Used by `ConfluenceClient.getDescendants`, `ConfluenceClient.getSpaceTree`, and `JiraClient.getChildIssues` to replace inline pagination loops.
 
+### fetchBinary
+
+```ts
+export async function fetchBinary(input: string | URL | Request, init?: RequestInit & { retry?: RetryOptions }): Promise<ArrayBuffer>;
+```
+
+Same retry/backoff behavior as `fetchJsonObject` (retries on 429, 500, 502, 503, 504 and `TypeError`), but returns raw binary content instead of parsed JSON. No Zod schema — the caller is responsible for interpreting the `ArrayBuffer`. On non-ok responses, throws `HttpError` (same as `fetchJsonObject`). Does **not** set `Accept: application/json` — no default `Accept` header is added.
+
 ### fetchJsonObject
 
 ```ts
@@ -143,7 +151,7 @@ Pass `{ maxRetries: 0 }` to disable retries entirely.
 
 ### Fetch Passthrough
 
-All `fetch` parameters are forwarded unmodified except `retry`, which is destructured out of `init` before the call. The only header added by the wrapper is `Accept: application/json` — no timeouts or other behaviors are layered on beyond retry.
+All `fetch` parameters are forwarded unmodified except `retry`, which is destructured out of `init` before the call. `fetchJsonObject` adds `Accept: application/json`; `fetchBinary` adds no default headers. No timeouts or other behaviors are layered on beyond retry.
 
 ### Generic Typing
 
@@ -153,7 +161,7 @@ The return type `Promise<TData>` is inferred from the Zod schema passed as the f
 
 Tests in `tests/http-client/`:
 
-| File                  | Covers                                                                                                                                                                                                                                      |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `http-client.test.ts` | `fetchAll` (single page, multi-page cursor following, empty results, cursor pass-through); `fetchJsonObject` (Zod validation, retry on retryable statuses/network errors, non-retryable 4xx, custom retry options, SyntaxError on non-JSON) |
-| `backoff.test.ts`     | First-success pass-through, eventual success, retry exhaustion, exponential delay, maxDelayMs cap, shouldRetry short-circuit                                                                                                                |
+| File                  | Covers                                                                                                                                                                                                                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `http-client.test.ts` | `fetchAll` (single page, multi-page cursor following, empty results, cursor pass-through); `fetchJsonObject` (Zod validation, retry on retryable statuses/network errors, non-retryable 4xx, custom retry options, SyntaxError on non-JSON); `fetchBinary` (returns ArrayBuffer, retry on retryable statuses, non-retryable 4xx throws HttpError) |
+| `backoff.test.ts`     | First-success pass-through, eventual success, retry exhaustion, exponential delay, maxDelayMs cap, shouldRetry short-circuit                                                                                                                                                                                                                      |
