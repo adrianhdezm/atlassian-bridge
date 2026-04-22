@@ -81,8 +81,13 @@ export function buildProgram(configDir?: string): Program {
     .subcommand('upgrade')
     .description('Update atl to the latest version')
     .action(() => {
-      console.log('Upgrading @ai-foundry/atlassian-bridge...');
-      execSync('npm update -g @ai-foundry/atlassian-bridge', { stdio: 'inherit' });
+      try {
+        execSync('npm outdated -g @ai-foundry/atlassian-bridge', { stdio: 'ignore' });
+        console.log(`Already on the latest version (${version}).`);
+      } catch {
+        console.log('Upgrading @ai-foundry/atlassian-bridge...');
+        execSync('npm update -g @ai-foundry/atlassian-bridge', { stdio: 'inherit' });
+      }
     });
 
   // ── confluence ────────────────────────────────────────────────

@@ -215,7 +215,7 @@ Update the globally installed package to the latest version.
 atl pkg upgrade
 ```
 
-Prints `"Upgrading @ai-foundry/atlassian-bridge..."` then runs `npm update -g @ai-foundry/atlassian-bridge` via `execSync` with `stdio: 'inherit'` so npm output streams directly to the terminal.
+First checks whether the package is outdated by running `npm outdated -g @ai-foundry/atlassian-bridge` via `execSync` with `stdio: 'ignore'`. If the command exits with code 0 (package is current), prints `"Already on the latest version (x.y.z)."` (where `x.y.z` is the installed version from `package.json`) and returns. If it exits with code 1 (package is outdated), prints `"Upgrading @ai-foundry/atlassian-bridge..."` then runs `npm update -g @ai-foundry/atlassian-bridge` via `execSync` with `stdio: 'inherit'` so npm output streams directly to the terminal.
 
 No credentials required.
 
@@ -547,7 +547,7 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 | `auth login`                | Saves credentials, throws on missing flags                                                                                                                                                                      |
 | `auth status`               | Displays masked token, throws when unconfigured                                                                                                                                                                 |
 | `auth logout`               | Removes file, handles missing file                                                                                                                                                                              |
-| `pkg upgrade`               | Calls `execSync` with correct npm command and `stdio: 'inherit'`                                                                                                                                                |
+| `pkg upgrade`               | Skips update when already on latest; calls `npm outdated` then `npm update` when outdated                                                                                                                       |
 | `confluence pages get`      | Fetch by numeric ID, title search, `--space` scoping, zero/multiple match errors, credential loading + remediation hint                                                                                         |
 | `confluence pages create`   | Required `--space` enforcement                                                                                                                                                                                  |
 | `confluence pages update`   | Fetches current values when flags omitted                                                                                                                                                                       |

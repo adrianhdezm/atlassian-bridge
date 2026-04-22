@@ -697,11 +697,25 @@ describe('atl-cli', () => {
   // ── pkg upgrade ────────────────────────────────────────────────
 
   describe('pkg upgrade', () => {
-    it('runs npm update -g @ai-foundry/atlassian-bridge', async () => {
+    it('skips update when already on latest', async () => {
+      const { logs } = await run(['pkg', 'upgrade']);
+
+      expect(logs).toContainEqual(expect.stringMatching(/Already on the latest version \(\d+\.\d+\.\d+\)\./));
+      expect(mockExecSync).toHaveBeenCalledOnce();
+      expect(mockExecSync).toHaveBeenCalledWith('npm outdated -g @ai-foundry/atlassian-bridge', { stdio: 'ignore' });
+    });
+
+    it('runs npm update when outdated', async () => {
+      mockExecSync.mockImplementationOnce(() => {
+        throw new Error('exit code 1');
+      });
+
       const { logs } = await run(['pkg', 'upgrade']);
 
       expect(logs).toContain('Upgrading @ai-foundry/atlassian-bridge...');
-      expect(mockExecSync).toHaveBeenCalledWith('npm update -g @ai-foundry/atlassian-bridge', { stdio: 'inherit' });
+      expect(mockExecSync).toHaveBeenCalledTimes(2);
+      expect(mockExecSync).toHaveBeenNthCalledWith(1, 'npm outdated -g @ai-foundry/atlassian-bridge', { stdio: 'ignore' });
+      expect(mockExecSync).toHaveBeenNthCalledWith(2, 'npm update -g @ai-foundry/atlassian-bridge', { stdio: 'inherit' });
     });
   });
 });
