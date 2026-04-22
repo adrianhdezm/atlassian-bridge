@@ -24,14 +24,16 @@ Only proceed once both checks pass.
 
 ### Issues
 
-| Action   | Command                                                                                                                          |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Get      | `atl jira issues get <issueKey>`                                                                                                 |
-| Create   | `atl jira issues create <summary> --project <key> --type <name> [--description <adf>] [--parent <key>] [--labels <csv>]`         |
-| Update   | `atl jira issues update <issueKey> [--summary <text>] [--description <adf>] [--parent <key>] [--labels <csv>] [--status <name>]` |
-| Delete   | `atl jira issues delete <issueKey>`                                                                                              |
-| Search   | `atl jira issues search <jql> [--limit <n>] [--cursor <token>] [--fields <csv>]`                                                 |
-| Children | `atl jira issues children <issueKey>`                                                                                            |
+| Action           | Command                                                                                                                          |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Get              | `atl jira issues get <issueKey>`                                                                                                 |
+| Create           | `atl jira issues create <summary> --project <key> --type <name> [--description <adf>] [--parent <key>] [--labels <csv>]`         |
+| Update           | `atl jira issues update <issueKey> [--summary <text>] [--description <adf>] [--parent <key>] [--labels <csv>] [--status <name>]` |
+| Delete           | `atl jira issues delete <issueKey>`                                                                                              |
+| Search           | `atl jira issues search <jql> [--limit <n>] [--cursor <token>] [--fields <csv>]`                                                 |
+| Children         | `atl jira issues children <issueKey>`                                                                                            |
+| List Attachments | `atl jira issues list-attachments <issueKey>`                                                                                    |
+| Get Attachment   | `atl jira issues get-attachment <attachmentId>`                                                                                  |
 
 ### Projects
 
@@ -46,4 +48,6 @@ Only proceed once both checks pass.
 - For search, build a valid JQL query from the user's intent (e.g. `project = PIXEL AND status = "In Progress" AND assignee = currentUser()`).
 - When creating issues, `--project` and `--type` are required. Common types: `Task`, `Bug`, `Story`, `Epic`, `Sub-task`.
 - When creating or updating issues with `--description`, the value must be valid ADF (Atlassian Document Format) JSON.
+- `list-attachments` returns an array of `{ id, filename, mimeType, size }` objects.
+- `get-attachment` returns a JSON object with `{ id, filename, mimeType, contentUrl }` where `contentUrl` is a data URI with base64-encoded content.
 - Always show the user the command you are about to run before executing it.
