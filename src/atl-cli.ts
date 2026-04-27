@@ -379,20 +379,24 @@ export function buildProgram(configDir?: string): Program {
       console.log(JSON.stringify(result.map(formatIssue), null, 2));
     });
 
-  issues
-    .subcommand('list-attachments')
+  // jira attachments
+
+  const attachments = jira.command('attachments').description('Manage attachments');
+
+  attachments
+    .subcommand('list')
     .description('List issue attachments')
     .argument('<issueKey>', 'Issue key')
     .action(async (args) => {
       const creds = loadCredentials();
       const client = new JiraClient(creds);
-      const attachments = await client.getIssueAttachments(args['issueKey'] as string);
-      const result = attachments.map(({ id, filename, mimeType, size }) => ({ id, filename, mimeType, size }));
-      console.log(JSON.stringify(result, null, 2));
+      const result = await client.getIssueAttachments(args['issueKey'] as string);
+      const formatted = result.map(({ id, filename, mimeType, size }) => ({ id, filename, mimeType, size }));
+      console.log(JSON.stringify(formatted, null, 2));
     });
 
-  issues
-    .subcommand('get-attachment')
+  attachments
+    .subcommand('get')
     .description('Get attachment content as base64')
     .argument('<attachmentId>', 'Attachment ID')
     .action(async (args) => {

@@ -677,9 +677,9 @@ describe('atl-cli', () => {
     });
   });
 
-  // ── jira issues list-attachments ───────────────────────────
+  // ── jira attachments list ──────────────────────────────────
 
-  describe('jira issues list-attachments', () => {
+  describe('jira attachments list', () => {
     it('returns attachment metadata with only id, filename, mimeType, size', async () => {
       mockJira.getIssueAttachments.mockResolvedValue([
         {
@@ -693,7 +693,7 @@ describe('atl-cli', () => {
         }
       ]);
 
-      const { logs } = await run(['jira', 'issues', 'list-attachments', 'PROJ-1']);
+      const { logs } = await run(['jira', 'attachments', 'list', 'PROJ-1']);
 
       expect(mockJira.getIssueAttachments).toHaveBeenCalledWith('PROJ-1');
       const output = JSON.parse(logs[0]) as unknown[];
@@ -708,15 +708,15 @@ describe('atl-cli', () => {
     it('returns empty array when no attachments', async () => {
       mockJira.getIssueAttachments.mockResolvedValue([]);
 
-      const { logs } = await run(['jira', 'issues', 'list-attachments', 'PROJ-1']);
+      const { logs } = await run(['jira', 'attachments', 'list', 'PROJ-1']);
 
       expect(logs[0]).toBe('[]');
     });
   });
 
-  // ── jira issues get-attachment ─────────────────────────────
+  // ── jira attachments get ───────────────────────────────────
 
-  describe('jira issues get-attachment', () => {
+  describe('jira attachments get', () => {
     it('returns base64-encoded attachment content', async () => {
       mockJira.getAttachment.mockResolvedValue({
         id: '100',
@@ -730,7 +730,7 @@ describe('atl-cli', () => {
       const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
       mockJira.getAttachmentContent.mockResolvedValue(bytes.buffer);
 
-      const { logs } = await run(['jira', 'issues', 'get-attachment', '100']);
+      const { logs } = await run(['jira', 'attachments', 'get', '100']);
 
       expect(mockJira.getAttachment).toHaveBeenCalledWith('100');
       expect(mockJira.getAttachmentContent).toHaveBeenCalledWith('https://x.atlassian.net/rest/api/3/attachment/content/100');
