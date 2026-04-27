@@ -4,35 +4,35 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 
 ## Command Overview
 
-| Namespace    | Command    | Subcommand         | Arguments          | Options                                                                            |
-| ------------ | ---------- | ------------------ | ------------------ | ---------------------------------------------------------------------------------- |
-| —            | `auth`     | `login`            | —                  | `--base-url <url>`, `--email <email>`, `--token <token>`                           |
-| —            | `auth`     | `status`           | —                  | —                                                                                  |
-| —            | `auth`     | `logout`           | —                  | —                                                                                  |
-| —            | `pkg`      | `upgrade`          | —                  | —                                                                                  |
-| `confluence` | `pages`    | `get`              | `<pageIdOrTitle>`  | `--space`                                                                          |
-| `confluence` | `pages`    | `create`           | `<title>`          | `--space` **(req)**, `--parent`, `--body`                                          |
-| `confluence` | `pages`    | `update`           | `<pageId>`         | `--title`, `--body`, `--parent`                                                    |
-| `confluence` | `pages`    | `delete`           | `<pageId>`         | —                                                                                  |
-| `confluence` | `pages`    | `children`         | `<pageIdOrTitle>`  | `--space`, `--depth`                                                               |
-| `confluence` | `pages`    | `search`           | `<cql>`            | `--limit`, `--cursor`                                                              |
-| `confluence` | `spaces`   | `get`              | `<spaceIdOrKey>`   | —                                                                                  |
-| `confluence` | `spaces`   | `tree`             | `<spaceIdOrKey>`   | `--depth`                                                                          |
-| `jira`       | `issues`   | `get`              | `<issueKey>`       | —                                                                                  |
-| `jira`       | `issues`   | `create`           | `<summary>`        | `--project` **(req)**, `--type` **(req)**, `--description`, `--parent`, `--labels` |
-| `jira`       | `issues`   | `update`           | `<issueKey>`       | `--summary`, `--description`, `--parent`, `--labels`, `--status`                   |
-| `jira`       | `issues`   | `delete`           | `<issueKey>`       | —                                                                                  |
-| `jira`       | `issues`   | `search`           | `<jql>`            | `--cursor`, `--limit`, `--fields`                                                  |
-| `jira`       | `issues`   | `children`         | `<issueKey>`       | —                                                                                  |
-| `jira`       | `issues`   | `list-attachments` | `<issueKey>`       | —                                                                                  |
-| `jira`       | `issues`   | `get-attachment`   | `<attachmentId>`   | —                                                                                  |
-| `jira`       | `comments` | `list`             | `<issueKey>`       | `--limit`, `--cursor`                                                              |
-| `jira`       | `comments` | `get`              | `<commentId>`      | `--issue` **(req)**                                                                |
-| `jira`       | `comments` | `add`              | `<issueKey>`       | `--body` **(req)**                                                                 |
-| `jira`       | `comments` | `update`           | `<commentId>`      | `--issue` **(req)**, `--body` **(req)**                                            |
-| `jira`       | `comments` | `delete`           | `<commentId>`      | `--issue` **(req)**                                                                |
-| `jira`       | `projects` | `get`              | `<projectKeyOrId>` | —                                                                                  |
-| `jira`       | `projects` | `list`             | —                  | `--cursor`, `--limit`, `--query`                                                   |
+| Namespace    | Command       | Subcommand | Arguments          | Options                                                                            |
+| ------------ | ------------- | ---------- | ------------------ | ---------------------------------------------------------------------------------- |
+| —            | `auth`        | `login`    | —                  | `--base-url <url>`, `--email <email>`, `--token <token>`                           |
+| —            | `auth`        | `status`   | —                  | —                                                                                  |
+| —            | `auth`        | `logout`   | —                  | —                                                                                  |
+| —            | `pkg`         | `upgrade`  | —                  | —                                                                                  |
+| `confluence` | `pages`       | `get`      | `<pageIdOrTitle>`  | `--space`                                                                          |
+| `confluence` | `pages`       | `create`   | `<title>`          | `--space` **(req)**, `--parent`, `--body`                                          |
+| `confluence` | `pages`       | `update`   | `<pageId>`         | `--title`, `--body`, `--parent`                                                    |
+| `confluence` | `pages`       | `delete`   | `<pageId>`         | —                                                                                  |
+| `confluence` | `pages`       | `children` | `<pageIdOrTitle>`  | `--space`, `--depth`                                                               |
+| `confluence` | `pages`       | `search`   | `<cql>`            | `--limit`, `--cursor`                                                              |
+| `confluence` | `spaces`      | `get`      | `<spaceIdOrKey>`   | —                                                                                  |
+| `confluence` | `spaces`      | `tree`     | `<spaceIdOrKey>`   | `--depth`                                                                          |
+| `jira`       | `issues`      | `get`      | `<issueKey>`       | —                                                                                  |
+| `jira`       | `issues`      | `create`   | `<summary>`        | `--project` **(req)**, `--type` **(req)**, `--description`, `--parent`, `--labels` |
+| `jira`       | `issues`      | `update`   | `<issueKey>`       | `--summary`, `--description`, `--parent`, `--labels`, `--status`                   |
+| `jira`       | `issues`      | `delete`   | `<issueKey>`       | —                                                                                  |
+| `jira`       | `issues`      | `search`   | `<jql>`            | `--cursor`, `--limit`, `--fields`                                                  |
+| `jira`       | `issues`      | `children` | `<issueKey>`       | —                                                                                  |
+| `jira`       | `attachments` | `list`     | `<issueKey>`       | —                                                                                  |
+| `jira`       | `attachments` | `get`      | `<attachmentId>`   | —                                                                                  |
+| `jira`       | `comments`    | `list`     | `<issueKey>`       | `--limit`, `--cursor`                                                              |
+| `jira`       | `comments`    | `get`      | `<commentId>`      | `--issue` **(req)**                                                                |
+| `jira`       | `comments`    | `add`      | `<issueKey>`       | `--body` **(req)**                                                                 |
+| `jira`       | `comments`    | `update`   | `<commentId>`      | `--issue` **(req)**, `--body` **(req)**                                            |
+| `jira`       | `comments`    | `delete`   | `<commentId>`      | `--issue` **(req)**                                                                |
+| `jira`       | `projects`    | `get`      | `<projectKeyOrId>` | —                                                                                  |
+| `jira`       | `projects`    | `list`     | —                  | `--cursor`, `--limit`, `--query`                                                   |
 
 Global option: `-v, --verbose` (available on all commands).
 
@@ -484,24 +484,32 @@ atl jira issues children <issueKey>
 
 SDK: `getChildIssues(issueKey)`
 
-#### `list-attachments <issueKey>`
+---
+
+### `jira attachments`
+
+```ts
+const attachments = jira.command('attachments').description('Manage attachments');
+```
+
+#### `list <issueKey>`
 
 List attachment metadata for an issue.
 
 ```
-atl jira issues list-attachments <issueKey>
+atl jira attachments list <issueKey>
 ```
 
 Returns an array of `{ id, filename, mimeType, size }` objects. Strips `created`, `self`, and the `content` URL from the raw attachment data to keep output concise.
 
 SDK: `getIssueAttachments(issueKey)`
 
-#### `get-attachment <attachmentId>`
+#### `get <attachmentId>`
 
 Download a single attachment and return its content as base64.
 
 ```
-atl jira issues get-attachment <attachmentId>
+atl jira attachments get <attachmentId>
 ```
 
 Fetches attachment metadata via `getAttachment(attachmentId)`, then downloads the binary content from the metadata's `content` URL via `getAttachmentContent(contentUrl)`. Base64-encodes the binary data with `Buffer.from(arrayBuffer).toString('base64')`. Outputs a single JSON object:
@@ -675,31 +683,31 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 
 ### Coverage
 
-| Command path                   | Key cases                                                                                                                                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth login`                   | Saves credentials, throws on missing flags                                                                                                                                                                      |
-| `auth status`                  | Displays masked token, throws when unconfigured                                                                                                                                                                 |
-| `auth logout`                  | Removes file, handles missing file                                                                                                                                                                              |
-| `pkg upgrade`                  | Skips update when already on latest; calls `npm outdated` then `npm update` when outdated                                                                                                                       |
-| `confluence pages get`         | Fetch by numeric ID, title search, `--space` scoping, zero/multiple match errors, credential loading + remediation hint                                                                                         |
-| `confluence pages create`      | Required `--space` enforcement                                                                                                                                                                                  |
-| `confluence pages update`      | Fetches current values when flags omitted                                                                                                                                                                       |
-| `confluence pages delete`      | SDK delegation, "Done" output                                                                                                                                                                                   |
-| `confluence pages children`    | Fetch by numeric ID, title search, `--space` scoping, zero/multiple match errors, depth option forwarding                                                                                                       |
-| `confluence pages search`      | SDK delegation, option forwarding                                                                                                                                                                               |
-| `confluence spaces get`        | SDK delegation, space ID or key                                                                                                                                                                                 |
-| `confluence spaces tree`       | SDK delegation, depth option                                                                                                                                                                                    |
-| `jira issues create`           | Required `--project`/`--type`, `JSON.parse` on description, comma-split labels                                                                                                                                  |
-| `jira issues update`           | Partial update, description parse, parent key forwarding, `--status` transition resolution (name→ID via `getIssue` transitions, case-insensitive first match, `AppError` on no match, transition before update) |
-| `jira issues delete`           | SDK delegation, "Done" output                                                                                                                                                                                   |
-| `jira issues search`           | JQL string, pagination params, comma-split fields                                                                                                                                                               |
-| `jira issues children`         | Auto-pagination delegation                                                                                                                                                                                      |
-| `jira issues list-attachments` | SDK delegation, output contains only `{ id, filename, mimeType, size }`, empty array when no attachments                                                                                                        |
-| `jira issues get-attachment`   | SDK delegation, output contains base64-encoded content                                                                                                                                                          |
-| `jira comments list`           | SDK delegation, pagination params, formatComment applied to comments array                                                                                                                                      |
-| `jira comments get`            | Required `--issue` enforcement, SDK delegation, formatComment applied                                                                                                                                           |
-| `jira comments add`            | Required `--body` enforcement, `JSON.parse` on body, formatComment applied                                                                                                                                      |
-| `jira comments update`         | Required `--issue` and `--body` enforcement, `JSON.parse` on body, formatComment applied                                                                                                                        |
-| `jira comments delete`         | Required `--issue` enforcement, SDK delegation, "Done" output                                                                                                                                                   |
-| `jira projects get`            | SDK delegation, project key or ID                                                                                                                                                                               |
-| `jira projects list`           | Default options, query filter                                                                                                                                                                                   |
+| Command path                | Key cases                                                                                                                                                                                                       |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth login`                | Saves credentials, throws on missing flags                                                                                                                                                                      |
+| `auth status`               | Displays masked token, throws when unconfigured                                                                                                                                                                 |
+| `auth logout`               | Removes file, handles missing file                                                                                                                                                                              |
+| `pkg upgrade`               | Skips update when already on latest; calls `npm outdated` then `npm update` when outdated                                                                                                                       |
+| `confluence pages get`      | Fetch by numeric ID, title search, `--space` scoping, zero/multiple match errors, credential loading + remediation hint                                                                                         |
+| `confluence pages create`   | Required `--space` enforcement                                                                                                                                                                                  |
+| `confluence pages update`   | Fetches current values when flags omitted                                                                                                                                                                       |
+| `confluence pages delete`   | SDK delegation, "Done" output                                                                                                                                                                                   |
+| `confluence pages children` | Fetch by numeric ID, title search, `--space` scoping, zero/multiple match errors, depth option forwarding                                                                                                       |
+| `confluence pages search`   | SDK delegation, option forwarding                                                                                                                                                                               |
+| `confluence spaces get`     | SDK delegation, space ID or key                                                                                                                                                                                 |
+| `confluence spaces tree`    | SDK delegation, depth option                                                                                                                                                                                    |
+| `jira issues create`        | Required `--project`/`--type`, `JSON.parse` on description, comma-split labels                                                                                                                                  |
+| `jira issues update`        | Partial update, description parse, parent key forwarding, `--status` transition resolution (name→ID via `getIssue` transitions, case-insensitive first match, `AppError` on no match, transition before update) |
+| `jira issues delete`        | SDK delegation, "Done" output                                                                                                                                                                                   |
+| `jira issues search`        | JQL string, pagination params, comma-split fields                                                                                                                                                               |
+| `jira issues children`      | Auto-pagination delegation                                                                                                                                                                                      |
+| `jira attachments list`     | SDK delegation, output contains only `{ id, filename, mimeType, size }`, empty array when no attachments                                                                                                        |
+| `jira attachments get`      | SDK delegation, output contains base64-encoded content                                                                                                                                                          |
+| `jira comments list`        | SDK delegation, pagination params, formatComment applied to comments array                                                                                                                                      |
+| `jira comments get`         | Required `--issue` enforcement, SDK delegation, formatComment applied                                                                                                                                           |
+| `jira comments add`         | Required `--body` enforcement, `JSON.parse` on body, formatComment applied                                                                                                                                      |
+| `jira comments update`      | Required `--issue` and `--body` enforcement, `JSON.parse` on body, formatComment applied                                                                                                                        |
+| `jira comments delete`      | Required `--issue` enforcement, SDK delegation, "Done" output                                                                                                                                                   |
+| `jira projects get`         | SDK delegation, project key or ID                                                                                                                                                                               |
+| `jira projects list`        | Default options, query filter                                                                                                                                                                                   |

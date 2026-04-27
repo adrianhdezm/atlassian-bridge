@@ -73,6 +73,9 @@ atl jira issues delete <issueKey>
 atl jira issues search <jql> [--limit] [--cursor] [--fields]
 atl jira issues children <issueKey>
 
+atl jira attachments list <issueKey>
+atl jira attachments get <attachmentId>
+
 atl jira projects get <keyOrId>
 atl jira projects list [--limit] [--cursor] [--query]
 

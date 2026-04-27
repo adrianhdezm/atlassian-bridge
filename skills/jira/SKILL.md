@@ -35,6 +35,13 @@ Only proceed once both checks pass.
 | List Attachments | `atl jira issues list-attachments <issueKey>`                                                                                    |
 | Get Attachment   | `atl jira issues get-attachment <attachmentId>`                                                                                  |
 
+### Attachments
+
+| Action | Command                                   |
+| ------ | ----------------------------------------- |
+| List   | `atl jira attachments list <issueKey>`    |
+| Get    | `atl jira attachments get <attachmentId>` |
+
 ### Comments
 
 | Action | Command                                                                |
