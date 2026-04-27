@@ -1,6 +1,6 @@
 ---
 name: jira
-description: Interact with Atlassian Jira via the atl CLI — read, create, update, delete, and search issues, and browse projects. Use when the user wants to work with Jira content (e.g. "get the issue", "create a Jira ticket", "search Jira", "list projects").
+description: Interact with Atlassian Jira via the atl CLI — read, create, update, delete, and search issues, manage comments, and browse projects. Use when the user wants to work with Jira content (e.g. "get the issue", "create a Jira ticket", "search Jira", "list projects", "add a comment").
 ---
 
 # Jira (atl CLI)
@@ -35,6 +35,16 @@ Only proceed once both checks pass.
 | List Attachments | `atl jira issues list-attachments <issueKey>`                                                                                    |
 | Get Attachment   | `atl jira issues get-attachment <attachmentId>`                                                                                  |
 
+### Comments
+
+| Action | Command                                                                |
+| ------ | ---------------------------------------------------------------------- |
+| List   | `atl jira comments list <issueKey> [--limit <n>] [--cursor <n>]`       |
+| Get    | `atl jira comments get <commentId> --issue <issueKey>`                 |
+| Add    | `atl jira comments add <issueKey> --body <adf>`                        |
+| Update | `atl jira comments update <commentId> --issue <issueKey> --body <adf>` |
+| Delete | `atl jira comments delete <commentId> --issue <issueKey>`              |
+
 ### Projects
 
 | Action | Command                                                                    |
@@ -48,6 +58,6 @@ Only proceed once both checks pass.
 - For search, build a valid JQL query from the user's intent (e.g. `project = PIXEL AND status = "In Progress" AND assignee = currentUser()`).
 - When creating issues, `--project` and `--type` are required. Common types: `Task`, `Bug`, `Story`, `Epic`, `Sub-task`.
 - When creating or updating issues with `--description`, the value must be valid ADF (Atlassian Document Format) JSON.
-- `list-attachments` returns an array of `{ id, filename, mimeType, size }` objects.
-- `get-attachment` returns a JSON object with `{ id, filename, mimeType, contentUrl }` where `contentUrl` is a data URI with base64-encoded content.
+- When adding or updating comments with `--body`, the value must be valid ADF JSON. Wrap in single quotes to prevent shell expansion of brackets.
+- For `get`, `update`, and `delete` on comments, `--issue` is required to identify which issue the comment belongs to.
 - Always show the user the command you are about to run before executing it.
