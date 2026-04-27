@@ -76,6 +76,12 @@ atl jira issues children <issueKey>
 atl jira attachments list <issueKey>
 atl jira attachments get <attachmentId>
 
+atl jira comments list <issueKey> [--limit] [--cursor]
+atl jira comments get <commentId> --issue <issueKey>
+atl jira comments add <issueKey> --body <adf>
+atl jira comments update <commentId> --issue <issueKey> --body <adf>
+atl jira comments delete <commentId> --issue <issueKey>
+
 atl jira projects get <keyOrId>
 atl jira projects list [--limit] [--cursor] [--query]
 
