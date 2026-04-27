@@ -26,6 +26,11 @@ CLI wiring layer connecting the CLI framework to the Jira and Confluence SDKs. S
 | `jira`       | `issues`   | `children`         | `<issueKey>`       | —                                                                                  |
 | `jira`       | `issues`   | `list-attachments` | `<issueKey>`       | —                                                                                  |
 | `jira`       | `issues`   | `get-attachment`   | `<attachmentId>`   | —                                                                                  |
+| `jira`       | `comments` | `list`             | `<issueKey>`       | `--limit`, `--cursor`                                                              |
+| `jira`       | `comments` | `get`              | `<commentId>`      | `--issue` **(req)**                                                                |
+| `jira`       | `comments` | `add`              | `<issueKey>`       | `--body` **(req)**                                                                 |
+| `jira`       | `comments` | `update`           | `<commentId>`      | `--issue` **(req)**, `--body` **(req)**                                            |
+| `jira`       | `comments` | `delete`           | `<commentId>`      | `--issue` **(req)**                                                                |
 | `jira`       | `projects` | `get`              | `<projectKeyOrId>` | —                                                                                  |
 | `jira`       | `projects` | `list`             | —                  | `--cursor`, `--limit`, `--query`                                                   |
 
@@ -132,6 +137,7 @@ Actions print results to stdout via `console.log`:
 Before serializing to JSON, data operations in the Jira and Confluence namespaces apply format functions to strip noisy API fields from responses:
 
 - **Jira issues** — `formatIssue` (from `jira/jira-format.ts`) applied to: `get`, `update`, `search` (maps over `issues` array), `children` (maps over result array). Not applied to `create` (returns `CreatedIssue`, not `Issue`) or `transitions`.
+- **Jira comments** — `formatComment` (from `jira/jira-format.ts`) applied to: `get`, `add`, `update`, `list` (maps over `comments` array, preserving the pagination envelope). Not applied to `delete` (void operation).
 - **Jira projects** — `formatProject` (from `jira/jira-format.ts`) applied to: `get`, `list` (maps over `values` array, preserving the pagination envelope).
 - **Confluence pages** — `formatPage` (from `confluence/confluence-format.ts`) applied to: `get`, `create`, `update`.
 - **Confluence spaces** — `formatSpace` (from `confluence/confluence-format.ts`) applied to: `get`. Not applied to `tree` (returns pages, not spaces).
@@ -513,6 +519,98 @@ SDK: `getAttachment(attachmentId)` → `getAttachmentContent(attachment.content)
 
 ---
 
+### `jira comments`
+
+```ts
+const comments = jira.command('comments').description('Manage comments');
+```
+
+#### `list <issueKey>`
+
+List comments on an issue with pagination.
+
+```
+atl jira comments list <issueKey> [flags]
+```
+
+| Flag                | Description | Default |
+| ------------------- | ----------- | ------- |
+| `--limit <n>`       | Max results | `50`    |
+| `--cursor <cursor>` | Offset      | `0`     |
+
+SDK: `getComments(issueKey, { startAt: cursor, maxResults: limit })`
+
+#### `get <commentId>`
+
+Fetch a single comment by ID.
+
+```
+atl jira comments get <commentId> [flags]
+```
+
+| Flag            | Description                             |
+| --------------- | --------------------------------------- |
+| `--issue <key>` | Issue key (**required at action time**) |
+
+`--issue` is required. The action throws `AppError` if absent.
+
+SDK: `getComment(issue, commentId)`
+
+#### `add <issueKey>`
+
+Add a comment to an issue.
+
+```
+atl jira comments add <issueKey> [flags]
+```
+
+| Flag           | Description                                        |
+| -------------- | -------------------------------------------------- |
+| `--body <adf>` | ADF JSON body string (**required at action time**) |
+
+`--body` is required by the SDK. The action throws `AppError` if absent.
+
+`--body` is a JSON string. The action `JSON.parse`s it into an object before passing to the SDK (Jira takes ADF as an object, not a string).
+
+SDK: `addComment(issueKey, { body })`
+
+#### `update <commentId>`
+
+Update a comment's body.
+
+```
+atl jira comments update <commentId> [flags]
+```
+
+| Flag            | Description                                        |
+| --------------- | -------------------------------------------------- |
+| `--issue <key>` | Issue key (**required at action time**)            |
+| `--body <adf>`  | ADF JSON body string (**required at action time**) |
+
+`--issue` and `--body` are required. The action throws `AppError` if either is absent.
+
+`--body` is a JSON string. The action `JSON.parse`s it into an object before passing to the SDK.
+
+SDK: `updateComment(issue, commentId, { body })`
+
+#### `delete <commentId>`
+
+Delete a comment.
+
+```
+atl jira comments delete <commentId> [flags]
+```
+
+| Flag            | Description                             |
+| --------------- | --------------------------------------- |
+| `--issue <key>` | Issue key (**required at action time**) |
+
+`--issue` is required. The action throws `AppError` if absent.
+
+SDK: `deleteComment(issue, commentId)` → prints `"Done."`
+
+---
+
 ### `jira projects`
 
 ```ts
@@ -598,5 +696,10 @@ Tests in `tests/atl-cli.test.ts`. CredentialStorage tests live separately (see `
 | `jira issues children`         | Auto-pagination delegation                                                                                                                                                                                      |
 | `jira issues list-attachments` | SDK delegation, output contains only `{ id, filename, mimeType, size }`, empty array when no attachments                                                                                                        |
 | `jira issues get-attachment`   | SDK delegation, output contains base64-encoded content                                                                                                                                                          |
+| `jira comments list`           | SDK delegation, pagination params, formatComment applied to comments array                                                                                                                                      |
+| `jira comments get`            | Required `--issue` enforcement, SDK delegation, formatComment applied                                                                                                                                           |
+| `jira comments add`            | Required `--body` enforcement, `JSON.parse` on body, formatComment applied                                                                                                                                      |
+| `jira comments update`         | Required `--issue` and `--body` enforcement, `JSON.parse` on body, formatComment applied                                                                                                                        |
+| `jira comments delete`         | Required `--issue` enforcement, SDK delegation, "Done" output                                                                                                                                                   |
 | `jira projects get`            | SDK delegation, project key or ID                                                                                                                                                                               |
 | `jira projects list`           | Default options, query filter                                                                                                                                                                                   |

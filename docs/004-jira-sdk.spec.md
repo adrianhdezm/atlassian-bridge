@@ -1,6 +1,6 @@
 # Jira SDK
 
-Thin client for Jira Cloud REST API v3 issue, transition, search, and project operations. Lives in `src/jira/` with Zod as the single runtime dependency. Uses `fetchJsonObject` from `src/http-client/http-client.ts` for JSON responses and raw `fetch` for void/204 responses.
+Thin client for Jira Cloud REST API v3 issue, transition, search, project, and comment operations. Lives in `src/jira/` with Zod as the single runtime dependency. Uses `fetchJsonObject` from `src/http-client/http-client.ts` for JSON responses and raw `fetch` for void/204 responses.
 
 ## Module Map
 
@@ -35,6 +35,13 @@ export class JiraClient {
   getIssueAttachments(issueIdOrKey: string): Promise<Attachment[]>;
   getAttachment(attachmentId: string): Promise<Attachment>;
   getAttachmentContent(contentUrl: string): Promise<ArrayBuffer>;
+
+  // Comments
+  getComments(issueIdOrKey: string, options?: GetCommentsOptions): Promise<PaginatedComments>;
+  getComment(issueIdOrKey: string, commentId: string): Promise<Comment>;
+  addComment(issueIdOrKey: string, input: AddCommentAttrs): Promise<Comment>;
+  updateComment(issueIdOrKey: string, commentId: string, input: UpdateCommentAttrs): Promise<Comment>;
+  deleteComment(issueIdOrKey: string, commentId: string): Promise<void>;
 
   // Transitions
   getTransitions(issueIdOrKey: string): Promise<Transition[]>;
@@ -111,6 +118,18 @@ const AttachmentSchema = z.looseObject({
   self: z.string(),
   content: z.string()
 });
+
+const CommentSchema = z.looseObject({
+  id: z.string(),
+  self: z.string(),
+  author: z.looseObject({ accountId: z.string(), displayName: z.string() }),
+  body: z.unknown(),
+  updateAuthor: z.looseObject({ accountId: z.string(), displayName: z.string() }),
+  created: z.string(),
+  updated: z.string()
+});
+
+type Comment = z.infer<typeof CommentSchema>;
 
 const IssueSchema = z.looseObject({
   id: z.string(),
@@ -221,6 +240,19 @@ type PaginatedProjects = z.infer<typeof PaginatedProjectsSchema>;
 // { startAt: number; maxResults: number; total: number; values: Project[] }
 ```
 
+### Paginated Comments
+
+Built by extending `JiraOffsetPaginationSchema`:
+
+```ts
+const PaginatedCommentsSchema = JiraOffsetPaginationSchema.extend({
+  comments: z.array(CommentSchema)
+});
+
+type PaginatedComments = z.infer<typeof PaginatedCommentsSchema>;
+// { startAt: number; maxResults: number; total: number; comments: Comment[] }
+```
+
 ## Internal State
 
 The constructor eagerly builds auth headers (see Basic Auth in `000-shared.spec.md`) and the API URL prefix:
@@ -288,6 +320,19 @@ interface GetProjectsOptions {
   startAt?: number; // API default: 0 (not enforced client-side)
   maxResults?: number; // API default: 50 (not enforced client-side)
   query?: string; // filter by project name
+}
+
+interface AddCommentAttrs {
+  body: object; // ADF document object
+}
+
+interface UpdateCommentAttrs {
+  body: object; // ADF document object
+}
+
+interface GetCommentsOptions {
+  startAt?: number; // API default: 0 (not enforced client-side)
+  maxResults?: number; // API default: 50 (not enforced client-side)
 }
 ```
 
@@ -415,6 +460,52 @@ Fetches a single attachment's metadata by its numeric ID. Returns `Attachment` (
 
 Downloads the binary content of an attachment. Accepts the full `content` URL from the attachment metadata (e.g. `https://your-domain.atlassian.net/rest/api/3/attachment/content/121181`). Uses `fetchBinary` from `http-client.ts` with the instance's auth headers. Returns raw `ArrayBuffer`.
 
+### getComments
+
+`GET /rest/api/3/issue/{issueIdOrKey}/comment?startAt=0&maxResults=50`
+
+Offset-based pagination. Appends `startAt` and `maxResults` when provided. Returns `PaginatedComments` — callers get the full pagination envelope including `comments` array, `startAt`, `maxResults`, and `total`.
+
+### getComment
+
+`GET /rest/api/3/issue/{issueIdOrKey}/comment/{commentId}`
+
+Fetches a single comment by its ID, scoped to the given issue. Returns `Comment`. Uses `fetchJsonObject` with `CommentSchema`.
+
+### addComment
+
+`POST /rest/api/3/issue/{issueIdOrKey}/comment`
+
+Request body sent to API:
+
+```json
+{
+  "body": { "version": 1, "type": "doc", "content": [...] }
+}
+```
+
+Validates `body` against `AdfSchema` before sending — invalid ADF throws `ZodError` at the call site, no round-trip to Jira. Returns the created `Comment`.
+
+### updateComment
+
+`PUT /rest/api/3/issue/{issueIdOrKey}/comment/{commentId}`
+
+Request body sent to API:
+
+```json
+{
+  "body": { "version": 1, "type": "doc", "content": [...] }
+}
+```
+
+Validates `body` against `AdfSchema` before sending. Returns the updated `Comment`.
+
+### deleteComment
+
+`DELETE /rest/api/3/issue/{issueIdOrKey}/comment/{commentId}`
+
+Returns 204. Uses raw `fetch` with `this.headers`, then asserts `response.ok`. Same pattern as `deleteIssue`.
+
 ## Usage
 
 ```ts
@@ -477,10 +568,19 @@ Returns `Record<string, unknown>`.
 
 Applied in `atl-cli.ts` at the command layer — after fetching, before `JSON.stringify`. `formatIssue` is used by: `getIssue`, `updateIssue`, `searchIssues` (maps over `issues` array), and `getChildIssues` (maps over result array). Not applied to `createIssue` (returns `CreatedIssue`, not `Issue`) or `getTransitions`. `formatProject` is used by project commands.
 
+`formatComment` applies the same `STRIPPED_KEYS` (`self`, `avatarUrls`, `iconUrl`) plus `STRIPPED_COMMENT_PATHS`:
+
+- `author.accountType`, `author.accountId`
+- `updateAuthor.accountType`, `updateAuthor.accountId`
+
+Returns `Record<string, unknown>`.
+
+Applied in `atl-cli.ts` at the command layer. `formatComment` is used by: `get`, `add`, `update`, and `list` (maps over `comments` array, preserving the pagination envelope). Not applied to `delete` (void operation).
+
 ## Error Handling
 
-Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createIssue` and `updateIssue` throw `ZodError` if the ADF description is invalid — before any HTTP request, only when `description` is provided. Void methods (`deleteIssue`, `transitionIssue`) use raw `fetch` and throw `HttpError` on non-ok responses — note that void methods using raw `fetch` do **not** retry on transient errors (unlike `fetchJsonObject`, which retries via `retryWithBackoff`).
+Errors follow `fetchJsonObject` behavior (see `002-http-client.spec.md`). Additionally, `createIssue`, `updateIssue`, `addComment`, and `updateComment` throw `ZodError` if the ADF body/description is invalid — before any HTTP request, only when provided. Void methods (`deleteIssue`, `transitionIssue`, `deleteComment`) use raw `fetch` and throw `HttpError` on non-ok responses — note that void methods using raw `fetch` do **not** retry on transient errors (unlike `fetchJsonObject`, which retries via `retryWithBackoff`).
 
 ## Testing
 
-Tests in `tests/jira/jira-client.test.ts` and `tests/jira/jira-format.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, parent key wrapping, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`), getIssueAttachments (returns attachment array from issue, empty array when no attachments), getAttachment (fetches single attachment metadata by ID), getAttachmentContent (downloads binary content as ArrayBuffer).
+Tests in `tests/jira/jira-client.test.ts` and `tests/jira/jira-format.test.ts`. Uses per-test `vi.spyOn(globalThis, 'fetch')` — each test creates its own spy, no module-level `fetchMock`. Covers: `JiraTokenPaginationSchema` (full/empty fields, `.extend()` composability); `JiraOffsetPaginationSchema` (parsing, `.extend()` composability, required field rejection); constructor (auth headers, URL building), getIssue (fields query param, expand=transitions, inline transitions parsing), createIssue (ADF validation, request envelope), updateIssue (partial update, ADF validation, parent key wrapping, returns updated Issue), deleteIssue (204 assertion), getTransitions (array unwrapping), transitionIssue (request envelope), searchIssues (JQL encoding, pagination params, default fields, custom fields override), getProject (fetch by key, fetch by numeric ID), getProjects (query filtering), getChildIssues (auto-pagination via `fetchAll`), getIssueAttachments (returns attachment array from issue, empty array when no attachments), getAttachment (fetches single attachment metadata by ID), getAttachmentContent (downloads binary content as ArrayBuffer), getComments (pagination params, returns PaginatedComments envelope), getComment (fetches single comment by issue key and comment ID), addComment (ADF validation, request body, returns created Comment), updateComment (ADF validation, request body, returns updated Comment), deleteComment (204 assertion).
