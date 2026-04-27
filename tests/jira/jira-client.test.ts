@@ -54,6 +54,19 @@ function makeTransition(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function makeComment(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '10000',
+    self: `${API}/issue/10001/comment/10000`,
+    author: { accountId: 'user1', displayName: 'User One' },
+    body: { version: 1, type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A comment' }] }] },
+    updateAuthor: { accountId: 'user1', displayName: 'User One' },
+    created: '2026-01-01T00:00:00.000+0000',
+    updated: '2026-01-01T00:00:00.000+0000',
+    ...overrides
+  };
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -675,6 +688,99 @@ describe('jira-client', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/attachment/content/100`);
       expect(new Uint8Array(result)).toEqual(bytes);
+    });
+  });
+
+  describe('getComments', () => {
+    it('fetches comments with pagination params', async () => {
+      const response = { startAt: 0, maxResults: 10, total: 1, comments: [makeComment()] };
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(response));
+
+      const result = await client.getComments('PROJ-1', { startAt: 0, maxResults: 10 });
+
+      expect(fetchSpy.mock.calls[0][0]).toContain(`${API}/issue/PROJ-1/comment`);
+      expect(fetchSpy.mock.calls[0][0]).toContain('startAt=0');
+      expect(fetchSpy.mock.calls[0][0]).toContain('maxResults=10');
+      expect(result.comments).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+
+    it('fetches comments without options', async () => {
+      const response = { startAt: 0, maxResults: 50, total: 0, comments: [] };
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(response));
+
+      const result = await client.getComments('PROJ-1');
+
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/PROJ-1/comment`);
+      expect(result.comments).toHaveLength(0);
+    });
+  });
+
+  describe('getComment', () => {
+    it('fetches a single comment by issue key and comment ID', async () => {
+      const comment = makeComment();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(comment));
+
+      const result = await client.getComment('PROJ-1', '10000');
+
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/PROJ-1/comment/10000`);
+      expect(result.id).toBe('10000');
+      expect(result.author.displayName).toBe('User One');
+    });
+  });
+
+  describe('addComment', () => {
+    it('posts comment with ADF body', async () => {
+      const comment = makeComment();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(comment));
+
+      const result = await client.addComment('PROJ-1', { body: validAdf });
+
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/PROJ-1/comment`);
+      const init = fetchSpy.mock.calls[0][1]!;
+      expect(init.method).toBe('POST');
+      const body = JSON.parse(init.body as string) as Record<string, unknown>;
+      expect(body).toHaveProperty('body');
+      expect(result.id).toBe('10000');
+    });
+
+    it('throws on invalid ADF body', async () => {
+      await expect(client.addComment('PROJ-1', { body: { invalid: true } })).rejects.toThrow();
+    });
+  });
+
+  describe('updateComment', () => {
+    it('updates comment with ADF body', async () => {
+      const comment = makeComment({ updated: '2026-01-02T00:00:00.000+0000' });
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(comment));
+
+      const result = await client.updateComment('PROJ-1', '10000', { body: validAdf });
+
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/PROJ-1/comment/10000`);
+      const init = fetchSpy.mock.calls[0][1]!;
+      expect(init.method).toBe('PUT');
+      expect(result.updated).toBe('2026-01-02T00:00:00.000+0000');
+    });
+
+    it('throws on invalid ADF body', async () => {
+      await expect(client.updateComment('PROJ-1', '10000', { body: { invalid: true } })).rejects.toThrow();
+    });
+  });
+
+  describe('deleteComment', () => {
+    it('sends DELETE and asserts ok', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }));
+
+      await client.deleteComment('PROJ-1', '10000');
+
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${API}/issue/PROJ-1/comment/10000`);
+      expect(fetchSpy.mock.calls[0][1]!.method).toBe('DELETE');
+    });
+
+    it('throws on non-ok response', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 404, statusText: 'Not Found' }));
+
+      await expect(client.deleteComment('PROJ-1', '99999')).rejects.toThrow();
     });
   });
 });

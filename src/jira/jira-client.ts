@@ -8,9 +8,21 @@ import {
   IssueSearchResultSchema,
   PaginatedProjectsSchema,
   ProjectSchema,
-  AttachmentSchema
+  AttachmentSchema,
+  CommentSchema,
+  PaginatedCommentsSchema
 } from './jira-models.js';
-import type { Issue, CreatedIssue, Transition, IssueSearchResult, PaginatedProjects, Project, Attachment } from './jira-models.js';
+import type {
+  Issue,
+  CreatedIssue,
+  Transition,
+  IssueSearchResult,
+  PaginatedProjects,
+  Project,
+  Attachment,
+  Comment,
+  PaginatedComments
+} from './jira-models.js';
 
 const TransitionsResponseSchema = z.object({
   transitions: z.array(TransitionSchema)
@@ -53,6 +65,19 @@ export interface GetProjectsOptions {
   startAt?: number;
   maxResults?: number;
   query?: string;
+}
+
+export interface AddCommentAttrs {
+  body: object;
+}
+
+export interface UpdateCommentAttrs {
+  body: object;
+}
+
+export interface GetCommentsOptions {
+  startAt?: number;
+  maxResults?: number;
 }
 
 export class JiraClient {
@@ -259,5 +284,56 @@ export class JiraClient {
     return fetchBinary(contentUrl, {
       headers: this.headers
     });
+  }
+
+  async getComments(issueIdOrKey: string, options?: GetCommentsOptions): Promise<PaginatedComments> {
+    const params = new URLSearchParams();
+    if (options?.startAt !== undefined) {
+      params.set('startAt', String(options.startAt));
+    }
+    if (options?.maxResults !== undefined) {
+      params.set('maxResults', String(options.maxResults));
+    }
+
+    const qs = params.toString();
+    return fetchJsonObject(PaginatedCommentsSchema, `${this.apiUrl}/issue/${issueIdOrKey}/comment${qs ? `?${qs}` : ''}`, {
+      headers: this.headers
+    });
+  }
+
+  async getComment(issueIdOrKey: string, commentId: string): Promise<Comment> {
+    return fetchJsonObject(CommentSchema, `${this.apiUrl}/issue/${issueIdOrKey}/comment/${commentId}`, {
+      headers: this.headers
+    });
+  }
+
+  async addComment(issueIdOrKey: string, input: AddCommentAttrs): Promise<Comment> {
+    AdfSchema.parse(input.body);
+
+    return fetchJsonObject(CommentSchema, `${this.apiUrl}/issue/${issueIdOrKey}/comment`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({ body: input.body })
+    });
+  }
+
+  async updateComment(issueIdOrKey: string, commentId: string, input: UpdateCommentAttrs): Promise<Comment> {
+    AdfSchema.parse(input.body);
+
+    return fetchJsonObject(CommentSchema, `${this.apiUrl}/issue/${issueIdOrKey}/comment/${commentId}`, {
+      method: 'PUT',
+      headers: this.headers,
+      body: JSON.stringify({ body: input.body })
+    });
+  }
+
+  async deleteComment(issueIdOrKey: string, commentId: string): Promise<void> {
+    const response = await fetch(`${this.apiUrl}/issue/${issueIdOrKey}/comment/${commentId}`, {
+      method: 'DELETE',
+      headers: this.headers
+    });
+    if (!response.ok) {
+      throw new HttpError(response.status, response.statusText);
+    }
   }
 }

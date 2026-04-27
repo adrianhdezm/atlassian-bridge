@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatIssue, formatProject } from '../../src/jira/jira-format.js';
-import type { Issue, Project } from '../../src/jira/jira-models.js';
+import { formatComment, formatIssue, formatProject } from '../../src/jira/jira-format.js';
+import type { Comment, Issue, Project } from '../../src/jira/jira-models.js';
 
 describe('jira-format', () => {
   describe('formatIssue', () => {
@@ -209,6 +209,62 @@ describe('jira-format', () => {
       const issueTypes = result['issueTypes'] as Record<string, unknown>[];
       expect(issueTypes[0]).toEqual({ id: '1', name: 'Bug' });
       expect(issueTypes[1]).toEqual({ id: '2', name: 'Task' });
+    });
+  });
+
+  describe('formatComment', () => {
+    const baseComment: Comment = {
+      id: '10000',
+      self: 'https://example.atlassian.net/rest/api/3/issue/10001/comment/10000',
+      author: { accountId: '123', displayName: 'Alice' },
+      body: { version: 1, type: 'doc', content: [] },
+      updateAuthor: { accountId: '456', displayName: 'Bob' },
+      created: '2026-01-01T00:00:00.000Z',
+      updated: '2026-01-02T00:00:00.000Z'
+    };
+
+    it('strips self from comment', () => {
+      const result = formatComment(baseComment);
+      expect(result).not.toHaveProperty('self');
+    });
+
+    it('preserves id, created, and updated', () => {
+      const result = formatComment(baseComment);
+      expect(result['id']).toBe('10000');
+      expect(result['created']).toBe('2026-01-01T00:00:00.000Z');
+      expect(result['updated']).toBe('2026-01-02T00:00:00.000Z');
+    });
+
+    it('strips accountId from author but preserves displayName', () => {
+      const result = formatComment(baseComment);
+      const author = result['author'] as Record<string, unknown>;
+      expect(author).not.toHaveProperty('accountId');
+      expect(author['displayName']).toBe('Alice');
+    });
+
+    it('strips accountId from updateAuthor but preserves displayName', () => {
+      const result = formatComment(baseComment);
+      const updateAuthor = result['updateAuthor'] as Record<string, unknown>;
+      expect(updateAuthor).not.toHaveProperty('accountId');
+      expect(updateAuthor['displayName']).toBe('Bob');
+    });
+
+    it('strips accountType from author and updateAuthor when present', () => {
+      const comment = {
+        ...baseComment,
+        author: { accountId: '123', displayName: 'Alice', accountType: 'atlassian' },
+        updateAuthor: { accountId: '456', displayName: 'Bob', accountType: 'atlassian' }
+      } as Comment;
+      const result = formatComment(comment);
+      const author = result['author'] as Record<string, unknown>;
+      const updateAuthor = result['updateAuthor'] as Record<string, unknown>;
+      expect(author).not.toHaveProperty('accountType');
+      expect(updateAuthor).not.toHaveProperty('accountType');
+    });
+
+    it('preserves body content', () => {
+      const result = formatComment(baseComment);
+      expect(result['body']).toEqual({ version: 1, type: 'doc', content: [] });
     });
   });
 });

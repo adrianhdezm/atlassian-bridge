@@ -33,7 +33,12 @@ const { mockConfluence, mockJira, mockExecSync, mockKeychain } = vi.hoisted(() =
     getAttachment: vi.fn(),
     getAttachmentContent: vi.fn(),
     getProject: vi.fn(),
-    getProjects: vi.fn()
+    getProjects: vi.fn(),
+    getComments: vi.fn(),
+    getComment: vi.fn(),
+    addComment: vi.fn(),
+    updateComment: vi.fn(),
+    deleteComment: vi.fn()
   },
   mockExecSync: vi.fn(),
   mockKeychain: {
@@ -76,6 +81,11 @@ vi.mock('../src/jira/jira-client.js', () => ({
     getAttachmentContent = mockJira.getAttachmentContent;
     getProject = mockJira.getProject;
     getProjects = mockJira.getProjects;
+    getComments = mockJira.getComments;
+    getComment = mockJira.getComment;
+    addComment = mockJira.addComment;
+    updateComment = mockJira.updateComment;
+    deleteComment = mockJira.deleteComment;
   }
 }));
 
@@ -762,6 +772,149 @@ describe('atl-cli', () => {
       await run(['jira', 'projects', 'list', '--query', 'web', '--cursor', '5', '--limit', '10']);
 
       expect(mockJira.getProjects).toHaveBeenCalledWith({ startAt: 5, maxResults: 10, query: 'web' });
+    });
+  });
+
+  // ── jira comments list ─────────────────────────────────────
+
+  describe('jira comments list', () => {
+    it('forwards default pagination options', async () => {
+      mockJira.getComments.mockResolvedValue({ startAt: 0, maxResults: 50, total: 0, comments: [] });
+
+      await run(['jira', 'comments', 'list', 'PROJ-1']);
+
+      expect(mockJira.getComments).toHaveBeenCalledWith('PROJ-1', { startAt: 0, maxResults: 50 });
+    });
+
+    it('forwards custom pagination options', async () => {
+      const comment = {
+        id: '10000',
+        author: { displayName: 'Alice' },
+        body: { version: 1, type: 'doc', content: [] },
+        updateAuthor: { displayName: 'Alice' },
+        created: '2026-01-01',
+        updated: '2026-01-01'
+      };
+      mockJira.getComments.mockResolvedValue({ startAt: 10, maxResults: 5, total: 15, comments: [comment] });
+
+      const { logs } = await run(['jira', 'comments', 'list', 'PROJ-1', '--cursor', '10', '--limit', '5']);
+
+      expect(mockJira.getComments).toHaveBeenCalledWith('PROJ-1', { startAt: 10, maxResults: 5 });
+      const output = JSON.parse(logs[0]) as Record<string, unknown>;
+      expect(output['total']).toBe(15);
+      const comments = output['comments'] as Record<string, unknown>[];
+      expect(comments).toHaveLength(1);
+    });
+  });
+
+  // ── jira comments get ──────────────────────────────────────
+
+  describe('jira comments get', () => {
+    it('fetches a single comment', async () => {
+      mockJira.getComment.mockResolvedValue({
+        id: '10000',
+        author: { displayName: 'Alice' },
+        body: { version: 1, type: 'doc', content: [] },
+        updateAuthor: { displayName: 'Alice' },
+        created: '2026-01-01',
+        updated: '2026-01-01'
+      });
+
+      const { logs } = await run(['jira', 'comments', 'get', '10000', '--issue', 'PROJ-1']);
+
+      expect(mockJira.getComment).toHaveBeenCalledWith('PROJ-1', '10000');
+      expect(logs[0]).toContain('"id": "10000"');
+    });
+
+    it('throws when --issue is missing', async () => {
+      const { rejection } = await run(['jira', 'comments', 'get', '10000']);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('--issue is required');
+    });
+  });
+
+  // ── jira comments add ──────────────────────────────────────
+
+  describe('jira comments add', () => {
+    it('adds a comment with ADF body', async () => {
+      const adf = { version: 1, type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }] };
+      mockJira.addComment.mockResolvedValue({
+        id: '10001',
+        author: { displayName: 'Alice' },
+        body: adf,
+        updateAuthor: { displayName: 'Alice' },
+        created: '2026-01-01',
+        updated: '2026-01-01'
+      });
+
+      const { logs } = await run(['jira', 'comments', 'add', 'PROJ-1', '--body', JSON.stringify(adf)]);
+
+      expect(mockJira.addComment).toHaveBeenCalledWith('PROJ-1', { body: adf });
+      expect(logs[0]).toContain('"id": "10001"');
+    });
+
+    it('throws when --body is missing', async () => {
+      const { rejection } = await run(['jira', 'comments', 'add', 'PROJ-1']);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('--body is required');
+    });
+  });
+
+  // ── jira comments update ───────────────────────────────────
+
+  describe('jira comments update', () => {
+    it('updates a comment with ADF body', async () => {
+      const adf = { version: 1, type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Updated' }] }] };
+      mockJira.updateComment.mockResolvedValue({
+        id: '10000',
+        author: { displayName: 'Alice' },
+        body: adf,
+        updateAuthor: { displayName: 'Alice' },
+        created: '2026-01-01',
+        updated: '2026-01-02'
+      });
+
+      const { logs } = await run(['jira', 'comments', 'update', '10000', '--issue', 'PROJ-1', '--body', JSON.stringify(adf)]);
+
+      expect(mockJira.updateComment).toHaveBeenCalledWith('PROJ-1', '10000', { body: adf });
+      expect(logs[0]).toContain('"id": "10000"');
+    });
+
+    it('throws when --issue is missing', async () => {
+      const adf = { version: 1, type: 'doc', content: [] };
+      const { rejection } = await run(['jira', 'comments', 'update', '10000', '--body', JSON.stringify(adf)]);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('--issue is required');
+    });
+
+    it('throws when --body is missing', async () => {
+      const { rejection } = await run(['jira', 'comments', 'update', '10000', '--issue', 'PROJ-1']);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('--body is required');
+    });
+  });
+
+  // ── jira comments delete ───────────────────────────────────
+
+  describe('jira comments delete', () => {
+    it('deletes a comment and prints Done', async () => {
+      mockJira.deleteComment.mockResolvedValue(undefined);
+
+      const { logs } = await run(['jira', 'comments', 'delete', '10000', '--issue', 'PROJ-1']);
+
+      expect(mockJira.deleteComment).toHaveBeenCalledWith('PROJ-1', '10000');
+      expect(logs).toContain('Done.');
+    });
+
+    it('throws when --issue is missing', async () => {
+      const { rejection } = await run(['jira', 'comments', 'delete', '10000']);
+
+      expect(rejection).toBeInstanceOf(AppError);
+      expect((rejection as AppError).message).toContain('--issue is required');
     });
   });
 

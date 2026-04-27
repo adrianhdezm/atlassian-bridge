@@ -47,6 +47,18 @@ export const AttachmentSchema = z.looseObject({
 
 export type Attachment = z.infer<typeof AttachmentSchema>;
 
+export const CommentSchema = z.looseObject({
+  id: z.string(),
+  self: z.string(),
+  author: z.looseObject({ accountId: z.string(), displayName: z.string() }),
+  body: z.unknown(),
+  updateAuthor: z.looseObject({ accountId: z.string(), displayName: z.string() }),
+  created: z.string(),
+  updated: z.string()
+});
+
+export type Comment = z.infer<typeof CommentSchema>;
+
 export const TransitionSchema = z.looseObject({
   id: z.string(),
   name: z.string(),
@@ -126,3 +138,9 @@ export const PaginatedProjectsSchema = JiraOffsetPaginationSchema.extend({
 });
 
 export type PaginatedProjects = z.infer<typeof PaginatedProjectsSchema>;
+
+export const PaginatedCommentsSchema = JiraOffsetPaginationSchema.extend({
+  comments: z.array(CommentSchema)
+});
+
+export type PaginatedComments = z.infer<typeof PaginatedCommentsSchema>;

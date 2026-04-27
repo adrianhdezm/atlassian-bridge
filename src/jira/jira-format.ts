@@ -1,4 +1,4 @@
-import type { Issue, Project } from './jira-models.js';
+import type { Comment, Issue, Project } from './jira-models.js';
 import { stripKeys, stripPaths } from '../shared/format-utils.js';
 
 const STRIPPED_KEYS: ReadonlySet<string> = new Set(['self', 'avatarUrls', 'iconUrl']);
@@ -54,10 +54,21 @@ const STRIPPED_PROJECT_PATHS: ReadonlyArray<string> = [
   'issueTypes.avatarId'
 ];
 
+const STRIPPED_COMMENT_PATHS: ReadonlyArray<string> = [
+  'author.accountType',
+  'author.accountId',
+  'updateAuthor.accountType',
+  'updateAuthor.accountId'
+];
+
 export function formatIssue(issue: Issue): Record<string, unknown> {
   return stripPaths(stripKeys(issue, STRIPPED_KEYS), STRIPPED_ISSUE_PATHS) as Record<string, unknown>;
 }
 
 export function formatProject(project: Project): Record<string, unknown> {
   return stripPaths(stripKeys(project, STRIPPED_KEYS), STRIPPED_PROJECT_PATHS) as Record<string, unknown>;
+}
+
+export function formatComment(comment: Comment): Record<string, unknown> {
+  return stripPaths(stripKeys(comment, STRIPPED_KEYS), STRIPPED_COMMENT_PATHS) as Record<string, unknown>;
 }

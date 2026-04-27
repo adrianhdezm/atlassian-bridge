@@ -8,7 +8,7 @@ import { Program } from './cli/program.js';
 import { AppError } from './shared/app-error.js';
 import { CredentialStorage } from './auth/credential-storage.js';
 import { JiraClient } from './jira/jira-client.js';
-import { formatIssue, formatProject } from './jira/jira-format.js';
+import { formatComment, formatIssue, formatProject } from './jira/jira-format.js';
 import { ConfluenceClient } from './confluence/confluence-client.js';
 import { formatPage, formatSpace } from './confluence/confluence-format.js';
 import type { Credentials } from './auth/credential-storage.js';
@@ -412,6 +412,97 @@ export function buildProgram(configDir?: string): Program {
           2
         )
       );
+    });
+
+  // jira comments
+
+  const comments = jira.command('comments').description('Manage comments');
+
+  comments
+    .subcommand('list')
+    .description('List comments on an issue')
+    .argument('<issueKey>', 'Issue key')
+    .option('--limit <n>', 'Max results', '50')
+    .option('--cursor <n>', 'Offset', '0')
+    .action(async (args, opts) => {
+      const creds = loadCredentials();
+      const client = new JiraClient(creds);
+      const result = await client.getComments(args['issueKey'] as string, {
+        startAt: Number(opts['cursor']),
+        maxResults: Number(opts['limit'])
+      });
+      console.log(JSON.stringify({ ...result, comments: result.comments.map(formatComment) }, null, 2));
+    });
+
+  comments
+    .subcommand('get')
+    .description('Get a comment by ID')
+    .argument('<commentId>', 'Comment ID')
+    .option('--issue <key>', 'Issue key')
+    .action(async (args, opts) => {
+      const creds = loadCredentials();
+      const client = new JiraClient(creds);
+      const issueKey = opts['issue'] as string | undefined;
+      if (!issueKey) {
+        throw new AppError('--issue is required');
+      }
+      const result = await client.getComment(issueKey, args['commentId'] as string);
+      console.log(JSON.stringify(formatComment(result), null, 2));
+    });
+
+  comments
+    .subcommand('add')
+    .description('Add a comment to an issue')
+    .argument('<issueKey>', 'Issue key')
+    .option('--body <adf>', 'ADF JSON body string')
+    .action(async (args, opts) => {
+      const creds = loadCredentials();
+      const client = new JiraClient(creds);
+      const bodyStr = opts['body'] as string | undefined;
+      if (!bodyStr) {
+        throw new AppError('--body is required');
+      }
+      const body = JSON.parse(bodyStr) as object;
+      const result = await client.addComment(args['issueKey'] as string, { body });
+      console.log(JSON.stringify(formatComment(result), null, 2));
+    });
+
+  comments
+    .subcommand('update')
+    .description('Update a comment')
+    .argument('<commentId>', 'Comment ID')
+    .option('--issue <key>', 'Issue key')
+    .option('--body <adf>', 'ADF JSON body string')
+    .action(async (args, opts) => {
+      const creds = loadCredentials();
+      const client = new JiraClient(creds);
+      const issueKey = opts['issue'] as string | undefined;
+      if (!issueKey) {
+        throw new AppError('--issue is required');
+      }
+      const bodyStr = opts['body'] as string | undefined;
+      if (!bodyStr) {
+        throw new AppError('--body is required');
+      }
+      const body = JSON.parse(bodyStr) as object;
+      const result = await client.updateComment(issueKey, args['commentId'] as string, { body });
+      console.log(JSON.stringify(formatComment(result), null, 2));
+    });
+
+  comments
+    .subcommand('delete')
+    .description('Delete a comment')
+    .argument('<commentId>', 'Comment ID')
+    .option('--issue <key>', 'Issue key')
+    .action(async (args, opts) => {
+      const creds = loadCredentials();
+      const client = new JiraClient(creds);
+      const issueKey = opts['issue'] as string | undefined;
+      if (!issueKey) {
+        throw new AppError('--issue is required');
+      }
+      await client.deleteComment(issueKey, args['commentId'] as string);
+      console.log('Done.');
     });
 
   // jira projects
